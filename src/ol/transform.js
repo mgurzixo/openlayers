@@ -1,7 +1,6 @@
 /**
  * @module ol/transform
  */
-import {WORKER_OFFSCREEN_CANVAS} from './has.js';
 import {assert} from './asserts.js';
 
 /**
@@ -269,7 +268,6 @@ export function determinant(mat) {
  * @type {Array}
  */
 const matrixPrecision = [1e6, 1e6, 1e6, 1e6, 2, 2];
-let transformStringDiv;
 
 /**
  * A rounded string version of the transform.  This can be used
@@ -278,8 +276,7 @@ let transformStringDiv;
  * @return {string} The transform as a string.
  */
 export function toString(mat) {
-  if (WORKER_OFFSCREEN_CANVAS) {
-    const transformString =
+  const transformString =
     'matrix(' +
     mat
       .map(
@@ -288,11 +285,5 @@ export function toString(mat) {
       )
       .join(', ') +
     ')';
-    return transformString;
-  }
-  const transformString = 'matrix(' + mat.join(', ') + ')';
-  const node =
-    transformStringDiv || (transformStringDiv = document.createElement('div'));
-  node.style.transform = transformString;
-  return node.style.transform;
+  return transformString;
 }
