@@ -1,3 +1,5 @@
+/* eslint-disable */
+
 /**
  * @module ol/transform
  */
@@ -268,8 +270,10 @@ export function determinant(mat) {
 /**
  * @type {Array}
  */
-const matrixPrecision = [1e6, 1e6, 1e6, 1e6, 2, 2];
+const matrixPrecision = [1e6, 1e6, 1e6, 1e6, 1e7, 1e7];
 let transformStringDiv;
+
+let myNumber = 0;
 
 /**
  * A rounded string version of the transform.  This can be used
@@ -278,8 +282,7 @@ let transformStringDiv;
  * @return {string} The transform as a string.
  */
 export function toString(mat) {
-  if (WORKER_OFFSCREEN_CANVAS) {
-    const transformString =
+  const newTransformString =
     'matrix(' +
     mat
       .map(
@@ -288,11 +291,14 @@ export function toString(mat) {
       )
       .join(', ') +
     ')';
-    return transformString;
-  }
+
   const transformString = 'matrix(' + mat.join(', ') + ')';
   const node =
     transformStringDiv || (transformStringDiv = document.createElement('div'));
   node.style.transform = transformString;
-  return node.style.transform;
+  const oldTransformString= node.style.transform;
+
+  console.log(`[OL.transform.toString] #${myNumber++} mat:"${mat}" old:"${oldTransformString}" new:"${newTransformString}" ${oldTransformString == newTransformString}`)
+
+  return newTransformString;
 }
