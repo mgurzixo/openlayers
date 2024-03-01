@@ -286,8 +286,7 @@ let cachedTransform;
  */
 export function toString(mat) {
   // if(! (++nbCalls%100))console.log(`[OL.transform.toString] hit:${(nbCalls-nbCalc)*100/nbCalls}%`)
-  if((mat[4] || mat[5]) && mat== cachedMat)return cachedTransform;
-  if(mat== cachedMat)return cachedTransform;
+  if((mat[4] || mat[5]) && mat == cachedMat)return cachedTransform;
 
   const transformString =
     'matrix(' +
