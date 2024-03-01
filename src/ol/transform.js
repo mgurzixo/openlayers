@@ -1,3 +1,6 @@
+/* eslint-disable */
+
+
 /**
  * @module ol/transform
  */
@@ -269,6 +272,12 @@ export function determinant(mat) {
  */
 const matrixPrecision = [1e6, 1e6, 1e6, 1e6, 1e7, 1e7];
 
+let cachedMat="";
+let cachedTransform;
+
+// let nbCalls=0;
+// let nbCalc=0;
+
 /**
  * A rounded string version of the transform.  This can be used
  * for CSS transforms.
@@ -276,6 +285,9 @@ const matrixPrecision = [1e6, 1e6, 1e6, 1e6, 1e7, 1e7];
  * @return {string} The transform as a string.
  */
 export function toString(mat) {
+  // if(! (++nbCalls%100))console.log(`[OL.transform.toString] hit:${(nbCalls-nbCalc)*100/nbCalls}%`)
+  if((mat[4] || mat[5]) && mat == cachedMat)return cachedTransform;
+
   const transformString =
     'matrix(' +
     mat
@@ -285,5 +297,10 @@ export function toString(mat) {
       )
       .join(', ') +
     ')';
+    if(mat[4] || mat[5]){
+      cachedMat=mat;
+      cachedTransform=transformString;
+    }
+    // nbCalc++;
   return transformString;
 }
