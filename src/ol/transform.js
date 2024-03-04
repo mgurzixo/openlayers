@@ -299,7 +299,8 @@ export function toString(mat) {
   node.style.transform = transformString;
   const oldTransformString= node.style.transform;
 
-  console.warn(`[OL.transform.toString] #${myNumber++} mat:"${mat}" old:"${oldTransformString}" new:"${newTransformString}" ${oldTransformString == newTransformString}`)
+  // console.warn(`[OL.transform.toString] #${myNumber++} mat:"${mat}" old:"${oldTransformString}" new:"${newTransformString}" ${oldTransformString == newTransformString}`)
+  // console.warn(`[OL.transform.toString] length:${document.querySelectorAll('.ol-layer canvas').length}`)
 
   return newTransformString;
 }
