@@ -270,10 +270,7 @@ export function determinant(mat) {
 /**
  * @type {Array}
  */
-const matrixPrecision = [1e6, 1e6, 1e6, 1e6, 1e7, 1e7];
-
-let cachedMat="";
-let cachedTransform;
+const matrixPrecision = [1e6, 1e6, 1e6, 1e6, 2,2 ];
 
 // let nbCalls=0;
 // let nbCalc=0;
@@ -286,7 +283,6 @@ let cachedTransform;
  */
 export function toString(mat) {
   // if(! (++nbCalls%100))console.log(`[OL.transform.toString] hit:${(nbCalls-nbCalc)*100/nbCalls}%`)
-  if((mat[4] || mat[5]) && mat == cachedMat)return cachedTransform;
 
   const transformString =
     'matrix(' +
@@ -297,10 +293,6 @@ export function toString(mat) {
       )
       .join(', ') +
     ')';
-    if(mat[4] || mat[5]){
-      cachedMat=mat;
-      cachedTransform=transformString;
-    }
     // nbCalc++;
   return transformString;
 }
