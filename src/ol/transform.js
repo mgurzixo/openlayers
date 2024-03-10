@@ -270,7 +270,7 @@ export function determinant(mat) {
 /**
  * @type {Array}
  */
-const matrixPrecision = [1e6, 1e6, 1e6, 1e6, 2,2 ];
+const matrixPrecision = [1e6, 1e6, 1e6, 1e6, 1e7,1e7 ];
 
 // let nbCalls=0;
 // let nbCalc=0;
