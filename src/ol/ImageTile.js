@@ -153,11 +153,13 @@ class ImageTile extends Tile {
       this.state = TileState.LOADING;
       this.changed();
       this.tileLoadFunction_(this, this.src_);
-      this.unlisten_ = listenImage(
-        this.image_,
-        this.handleImageLoad_.bind(this),
-        this.handleImageError_.bind(this),
-      );
+      if (this.state == TileState.IDLE) {
+        this.unlisten_ = listenImage(
+          this.image_,
+          this.handleImageLoad_.bind(this),
+          this.handleImageError_.bind(this)
+        );
+      }
     }
   }
 
