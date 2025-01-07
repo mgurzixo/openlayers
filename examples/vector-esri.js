@@ -1,13 +1,16 @@
-import EsriJSON from '../src/ol/format/EsriJSON.js';
 import Map from '../src/ol/Map.js';
-import VectorSource from '../src/ol/source/Vector.js';
 import View from '../src/ol/View.js';
-import XYZ from '../src/ol/source/XYZ.js';
-import {Fill, Stroke, Style} from '../src/ol/style.js';
-import {Tile as TileLayer, Vector as VectorLayer} from '../src/ol/layer.js';
-import {createXYZ} from '../src/ol/tilegrid.js';
-import {fromLonLat} from '../src/ol/proj.js';
+import EsriJSON from '../src/ol/format/EsriJSON.js';
+import TileLayer from '../src/ol/layer/Tile.js';
+import VectorLayer from '../src/ol/layer/Vector.js';
 import {tile as tileStrategy} from '../src/ol/loadingstrategy.js';
+import {fromLonLat} from '../src/ol/proj.js';
+import ImageTile from '../src/ol/source/ImageTile.js';
+import VectorSource from '../src/ol/source/Vector.js';
+import Fill from '../src/ol/style/Fill.js';
+import Stroke from '../src/ol/style/Stroke.js';
+import Style from '../src/ol/style/Style.js';
+import {createXYZ} from '../src/ol/tilegrid.js';
 
 const serviceUrl =
   'https://services-eu1.arcgis.com/NPIbx47lsIiu2pqz/ArcGIS/rest/services/' +
@@ -96,7 +99,7 @@ const vector = new VectorLayer({
 });
 
 const raster = new TileLayer({
-  source: new XYZ({
+  source: new ImageTile({
     attributions:
       'Tiles © <a href="https://services.arcgisonline.com/ArcGIS/' +
       'rest/services/World_Topo_Map/MapServer">ArcGIS</a>',

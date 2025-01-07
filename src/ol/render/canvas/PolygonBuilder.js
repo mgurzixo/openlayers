@@ -1,6 +1,12 @@
 /**
  * @module ol/render/canvas/PolygonBuilder
  */
+import {snap} from '../../geom/flat/simplify.js';
+import {
+  defaultFillStyle,
+  defaultLineDash,
+  defaultLineDashOffset,
+} from '../canvas.js';
 import CanvasBuilder from './Builder.js';
 import CanvasInstruction, {
   beginPathInstruction,
@@ -8,12 +14,6 @@ import CanvasInstruction, {
   fillInstruction,
   strokeInstruction,
 } from './Instruction.js';
-import {
-  defaultFillStyle,
-  defaultLineDash,
-  defaultLineDashOffset,
-} from '../canvas.js';
-import {snap} from '../../geom/flat/simplify.js';
 
 class CanvasPolygonBuilder extends CanvasBuilder {
   /**
@@ -82,6 +82,7 @@ class CanvasPolygonBuilder extends CanvasBuilder {
    * @param {import("../../geom/Circle.js").default} circleGeometry Circle geometry.
    * @param {import("../../Feature.js").default} feature Feature.
    * @param {number} [index] Render order index.
+   * @override
    */
   drawCircle(circleGeometry, feature, index) {
     const state = this.state;
@@ -139,6 +140,7 @@ class CanvasPolygonBuilder extends CanvasBuilder {
    * @param {import("../../geom/Polygon.js").default|import("../Feature.js").default} polygonGeometry Polygon geometry.
    * @param {import("../../Feature.js").FeatureLike} feature Feature.
    * @param {number} [index] Render order index.
+   * @override
    */
   drawPolygon(polygonGeometry, feature, index) {
     const state = this.state;
@@ -183,6 +185,7 @@ class CanvasPolygonBuilder extends CanvasBuilder {
    * @param {import("../../geom/MultiPolygon.js").default} multiPolygonGeometry MultiPolygon geometry.
    * @param {import("../../Feature.js").FeatureLike} feature Feature.
    * @param {number} [index] Render order index.
+   * @override
    */
   drawMultiPolygon(multiPolygonGeometry, feature, index) {
     const state = this.state;
@@ -228,6 +231,7 @@ class CanvasPolygonBuilder extends CanvasBuilder {
 
   /**
    * @return {import("../canvas.js").SerializableInstructions} the serializable instructions.
+   * @override
    */
   finish() {
     this.reverseHitDetectionInstructions();

@@ -3,12 +3,12 @@
  */
 import Feature from '../Feature.js';
 import LineString from '../geom/LineString.js';
-import TextFeature from './TextFeature.js';
-import {flipXY} from '../geom/flat/flip.js';
-import {get as getProjection} from '../proj.js';
 import {getStrideForLayout} from '../geom/SimpleGeometry.js';
+import {flipXY} from '../geom/flat/flip.js';
 import {inflateCoordinates} from '../geom/flat/inflate.js';
+import {get as getProjection} from '../proj.js';
 import {transformGeometryWithOptions} from './Feature.js';
+import TextFeature from './TextFeature.js';
 
 /**
  * @typedef {Object} Options
@@ -65,6 +65,7 @@ class Polyline extends TextFeature {
    * @param {string} text Text.
    * @param {import("./Feature.js").ReadOptions} [options] Read options.
    * @return {import("../Feature.js").default} Feature.
+   * @override
    */
   readFeatureFromText(text, options) {
     const geometry = this.readGeometryFromText(text, options);
@@ -76,6 +77,7 @@ class Polyline extends TextFeature {
    * @param {import("./Feature.js").ReadOptions} [options] Read options.
    * @protected
    * @return {Array<Feature>} Features.
+   * @override
    */
   readFeaturesFromText(text, options) {
     const feature = this.readFeatureFromText(text, options);
@@ -87,6 +89,7 @@ class Polyline extends TextFeature {
    * @param {import("./Feature.js").ReadOptions} [options] Read options.
    * @protected
    * @return {import("../geom/Geometry.js").default} Geometry.
+   * @override
    */
   readGeometryFromText(text, options) {
     const stride = getStrideForLayout(this.geometryLayout_);
@@ -112,6 +115,7 @@ class Polyline extends TextFeature {
    * @param {import("./Feature.js").WriteOptions} [options] Write options.
    * @protected
    * @return {string} Text.
+   * @override
    */
   writeFeatureText(feature, options) {
     const geometry = feature.getGeometry();
@@ -126,6 +130,7 @@ class Polyline extends TextFeature {
    * @param {import("./Feature.js").WriteOptions} [options] Write options.
    * @protected
    * @return {string} Text.
+   * @override
    */
   writeFeaturesText(features, options) {
     return this.writeFeatureText(features[0], options);
@@ -136,6 +141,7 @@ class Polyline extends TextFeature {
    * @param {import("./Feature.js").WriteOptions} [options] Write options.
    * @protected
    * @return {string} Text.
+   * @override
    */
   writeGeometryText(geometry, options) {
     geometry =

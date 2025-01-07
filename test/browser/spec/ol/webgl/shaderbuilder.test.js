@@ -1,13 +1,13 @@
 import {
-  COMMON_HEADER,
-  ShaderBuilder,
-} from '../../../../../src/ol/webgl/ShaderBuilder.js';
-import {
   arrayToGlsl,
   colorToGlsl,
   numberToGlsl,
   stringToGlsl,
 } from '../../../../../src/ol/expr/gpu.js';
+import {
+  COMMON_HEADER,
+  ShaderBuilder,
+} from '../../../../../src/ol/webgl/ShaderBuilder.js';
 
 describe('ol.webgl.ShaderBuilder', () => {
   describe('getSymbolVertexShader', () => {
@@ -24,11 +24,11 @@ describe('ol.webgl.ShaderBuilder', () => {
 
 attribute vec2 a_position;
 attribute float a_index;
-attribute vec4 a_prop_hitColor;
+attribute vec4 a_hitColor;
 
 varying vec2 v_texCoord;
 varying vec2 v_quadCoord;
-varying vec4 v_prop_hitColor;
+varying vec4 v_hitColor;
 varying vec2 v_centerPx;
 varying float v_angle;
 varying vec2 v_quadSizePx;
@@ -69,7 +69,7 @@ void main(void) {
   float u = a_index == 0.0 || a_index == 3.0 ? texCoord.s : texCoord.p;
   float v = a_index == 2.0 || a_index == 3.0 ? texCoord.t : texCoord.q;
   v_texCoord = vec2(u, v);
-  v_prop_hitColor = a_prop_hitColor;
+  v_hitColor = a_hitColor;
   v_angle = angle;
   c = cos(-v_angle);
   s = sin(-v_angle);
@@ -92,11 +92,11 @@ void main(void) {
 uniform float u_myUniform;
 attribute vec2 a_position;
 attribute float a_index;
-attribute vec4 a_prop_hitColor;
+attribute vec4 a_hitColor;
 attribute vec2 a_myAttr;
 varying vec2 v_texCoord;
 varying vec2 v_quadCoord;
-varying vec4 v_prop_hitColor;
+varying vec4 v_hitColor;
 varying vec2 v_centerPx;
 varying float v_angle;
 varying vec2 v_quadSizePx;
@@ -136,7 +136,7 @@ void main(void) {
   float u = a_index == 0.0 || a_index == 3.0 ? texCoord.s : texCoord.p;
   float v = a_index == 2.0 || a_index == 3.0 ? texCoord.t : texCoord.q;
   v_texCoord = vec2(u, v);
-  v_prop_hitColor = a_prop_hitColor;
+  v_hitColor = a_hitColor;
   v_angle = angle;
   c = cos(-v_angle);
   s = sin(-v_angle);
@@ -157,11 +157,11 @@ void main(void) {
 
 attribute vec2 a_position;
 attribute float a_index;
-attribute vec4 a_prop_hitColor;
+attribute vec4 a_hitColor;
 
 varying vec2 v_texCoord;
 varying vec2 v_quadCoord;
-varying vec4 v_prop_hitColor;
+varying vec4 v_hitColor;
 varying vec2 v_centerPx;
 varying float v_angle;
 varying vec2 v_quadSizePx;
@@ -201,7 +201,7 @@ void main(void) {
   float u = a_index == 0.0 || a_index == 3.0 ? texCoord.s : texCoord.p;
   float v = a_index == 2.0 || a_index == 3.0 ? texCoord.t : texCoord.q;
   v_texCoord = vec2(u, v);
-  v_prop_hitColor = a_prop_hitColor;
+  v_hitColor = a_hitColor;
   v_angle = angle;
   c = cos(-v_angle);
   s = sin(-v_angle);
@@ -221,11 +221,11 @@ void main(void) {
 
 attribute vec2 a_position;
 attribute float a_index;
-attribute vec4 a_prop_hitColor;
+attribute vec4 a_hitColor;
 
 varying vec2 v_texCoord;
 varying vec2 v_quadCoord;
-varying vec4 v_prop_hitColor;
+varying vec4 v_hitColor;
 varying vec2 v_centerPx;
 varying float v_angle;
 varying vec2 v_quadSizePx;
@@ -265,7 +265,7 @@ void main(void) {
   float u = a_index == 0.0 || a_index == 3.0 ? texCoord.s : texCoord.p;
   float v = a_index == 2.0 || a_index == 3.0 ? texCoord.t : texCoord.q;
   v_texCoord = vec2(u, v);
-  v_prop_hitColor = a_prop_hitColor;
+  v_hitColor = a_hitColor;
   v_angle = angle;
   c = cos(-v_angle);
   s = sin(-v_angle);
@@ -296,7 +296,7 @@ void main(void) {
       expect(builder.getSymbolFragmentShader()).to.eql(`${COMMON_HEADER}
 
 varying vec2 v_texCoord;
-varying vec4 v_prop_hitColor;
+varying vec4 v_hitColor;
 varying vec2 v_centerPx;
 varying float v_angle;
 varying vec2 v_quadSizePx;
@@ -311,9 +311,10 @@ void main(void) {
   float s = sin(v_angle);
   coordsPx = vec2(c * coordsPx.x - s * coordsPx.y, s * coordsPx.x + c * coordsPx.y);
   gl_FragColor = vec4(0.3137254901960784, 0.0, 1.0, 1.0);
+  gl_FragColor.rgb *= gl_FragColor.a;
   if (u_hitDetection > 0) {
     if (gl_FragColor.a < 0.05) { discard; };
-    gl_FragColor = v_prop_hitColor;
+    gl_FragColor = v_hitColor;
   }
 }`);
     });
@@ -331,7 +332,7 @@ void main(void) {
 uniform float u_myUniform;
 uniform vec2 u_myUniform2;
 varying vec2 v_texCoord;
-varying vec4 v_prop_hitColor;
+varying vec4 v_hitColor;
 varying vec2 v_centerPx;
 varying float v_angle;
 varying vec2 v_quadSizePx;
@@ -345,9 +346,10 @@ void main(void) {
   float s = sin(v_angle);
   coordsPx = vec2(c * coordsPx.x - s * coordsPx.y, s * coordsPx.x + c * coordsPx.y);
   gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+  gl_FragColor.rgb *= gl_FragColor.a;
   if (u_hitDetection > 0) {
     if (gl_FragColor.a < 0.05) { discard; };
-    gl_FragColor = v_prop_hitColor;
+    gl_FragColor = v_hitColor;
   }
 }`);
     });
@@ -381,22 +383,24 @@ void main(void) {
       it('generates a stroke vertex shader (with uniforms, varying and attributes)', () => {
         expect(builder.getStrokeVertexShader()).to.eql(`${COMMON_HEADER}
 uniform float u_myUniform;
-attribute vec2 a_position;
-attribute float a_index;
 attribute vec2 a_segmentStart;
 attribute vec2 a_segmentEnd;
+attribute float a_measureStart;
+attribute float a_measureEnd;
 attribute float a_parameters;
 attribute float a_distance;
 attribute vec2 a_joinAngles;
-attribute vec4 a_prop_hitColor;
+attribute vec4 a_hitColor;
 attribute vec2 a_myAttr;
 varying vec2 v_segmentStart;
 varying vec2 v_segmentEnd;
 varying float v_angleStart;
 varying float v_angleEnd;
 varying float v_width;
-varying vec4 v_prop_hitColor;
+varying vec4 v_hitColor;
 varying float v_distanceOffsetPx;
+varying float v_measureStart;
+varying float v_measureEnd;
 varying float v_opacity;
 varying vec3 v_test;
 
@@ -436,6 +440,7 @@ void main(void) {
   v_angleStart = a_joinAngles.x;
   v_angleEnd = a_joinAngles.y;
   float vertexNumber = floor(abs(a_parameters) / 10000. + 0.5);
+  currentLineMetric = vertexNumber < 1.5 ? a_measureStart : a_measureEnd;
   // we're reading the fractional part while keeping the sign (so -4.12 gives -0.12, 3.45 gives 0.45)
   float angleTangentSum = fract(abs(a_parameters) / 10000.) * 10000. * sign(a_parameters);
 
@@ -468,8 +473,10 @@ void main(void) {
   v_segmentStart = segmentStartPx;
   v_segmentEnd = segmentEndPx;
   v_width = lineWidth;
-  v_prop_hitColor = a_prop_hitColor;
+  v_hitColor = a_hitColor;
   v_distanceOffsetPx = a_distance / u_resolution - (lineOffsetPx * angleTangentSum);
+  v_measureStart = a_measureStart;
+  v_measureEnd = a_measureEnd;
   v_opacity = 0.4;
   v_test = vec3(1.0, 2.0, 3.0);
 }`);
@@ -489,8 +496,10 @@ varying vec2 v_segmentEnd;
 varying float v_angleStart;
 varying float v_angleEnd;
 varying float v_width;
-varying vec4 v_prop_hitColor;
+varying vec4 v_hitColor;
 varying float v_distanceOffsetPx;
+varying float v_measureStart;
+varying float v_measureEnd;
 varying float v_opacity;
 varying vec3 v_test;
 
@@ -593,16 +602,20 @@ void main(void) {
     discard;
   }
   #endif
-  if (u_myUniform > 0.5) { discard; }
 
   float segmentLength = length(v_segmentEnd - v_segmentStart);
   vec2 segmentTangent = (v_segmentEnd - v_segmentStart) / segmentLength;
   vec2 segmentNormal = vec2(-segmentTangent.y, segmentTangent.x);
   vec2 startToPoint = currentPoint - v_segmentStart;
-  float currentLengthPx = max(0., min(dot(segmentTangent, startToPoint), segmentLength)) + v_distanceOffsetPx; 
+  float lengthToPoint = max(0., min(dot(segmentTangent, startToPoint), segmentLength));
+  float currentLengthPx = lengthToPoint + v_distanceOffsetPx; 
   float currentRadiusPx = abs(dot(segmentNormal, startToPoint));
   float currentRadiusRatio = dot(segmentNormal, startToPoint) * 2. / v_width;
-  vec4 color = vec4(0.3137254901960784, 0.0, 1.0, 1.0) * u_globalAlpha;
+  currentLineMetric = mix(v_measureStart, v_measureEnd, lengthToPoint / segmentLength);
+
+  if (u_myUniform > 0.5) { discard; }
+
+  vec4 color = vec4(0.3137254901960784, 0.0, 1.0, 1.0);
   float capType = ${stringToGlsl('butt')};
   float joinType = ${stringToGlsl('bevel')};
   float segmentStartDistance = computeSegmentPointDistance(currentPoint, v_segmentStart, v_segmentEnd, v_width, v_angleStart, capType, joinType);
@@ -612,10 +625,13 @@ void main(void) {
     max(segmentStartDistance, segmentEndDistance)
   );
   distance = max(distance, cos(currentLengthPx));
-  gl_FragColor = color * smoothstep(0.5, -0.5, distance);
+  color.a *= smoothstep(0.5, -0.5, distance);
+  gl_FragColor = color;
+  gl_FragColor.a *= u_globalAlpha;
+  gl_FragColor.rgb *= gl_FragColor.a;
   if (u_hitDetection > 0) {
     if (gl_FragColor.a < 0.1) { discard; };
-    gl_FragColor = v_prop_hitColor;
+    gl_FragColor = v_hitColor;
   }
 }`);
       });
@@ -640,15 +656,15 @@ void main(void) {
       expect(builder.getFillVertexShader()).to.eql(`${COMMON_HEADER}
 uniform float u_myUniform;
 attribute vec2 a_position;
-attribute vec4 a_prop_hitColor;
+attribute vec4 a_hitColor;
 attribute vec2 a_myAttr;
-varying vec4 v_prop_hitColor;
+varying vec4 v_hitColor;
 varying float v_opacity;
 varying vec3 v_test;
 
 void main(void) {
   gl_Position = u_projectionMatrix * vec4(a_position, u_depth, 1.0);
-  v_prop_hitColor = a_prop_hitColor;
+  v_hitColor = a_hitColor;
   v_opacity = 0.4;
   v_test = vec3(1.0, 2.0, 3.0);
 }`);
@@ -671,7 +687,7 @@ void main(void) {
 
       expect(builder.getFillFragmentShader()).to.eql(`${COMMON_HEADER}
 uniform float u_myUniform;
-varying vec4 v_prop_hitColor;
+varying vec4 v_hitColor;
 varying float v_opacity;
 varying vec3 v_test;
 
@@ -702,10 +718,12 @@ void main(void) {
   }
   #endif
   if (u_myUniform > 0.5) { discard; }
-  gl_FragColor = vec4(0.3137254901960784, 0.0, 1.0, 1.0) * u_globalAlpha;
+  gl_FragColor = vec4(0.3137254901960784, 0.0, 1.0, 1.0);
+  gl_FragColor.a *= u_globalAlpha;
+  gl_FragColor.rgb *= gl_FragColor.a;
   if (u_hitDetection > 0) {
     if (gl_FragColor.a < 0.1) { discard; };
-    gl_FragColor = v_prop_hitColor;
+    gl_FragColor = v_hitColor;
   }
 }`);
     });

@@ -1,20 +1,24 @@
+import monotoneChainConvexHull from 'monotone-chain-convex-hull';
 import Feature from '../src/ol/Feature.js';
-import GeoJSON from '../src/ol/format/GeoJSON.js';
 import Map from '../src/ol/Map.js';
 import View from '../src/ol/View.js';
-import {
-  Circle as CircleStyle,
-  Fill,
-  Icon,
-  Stroke,
-  Style,
-  Text,
-} from '../src/ol/style.js';
-import {Cluster, Vector as VectorSource, XYZ} from '../src/ol/source.js';
-import {LineString, Point, Polygon} from '../src/ol/geom.js';
-import {Tile as TileLayer, Vector as VectorLayer} from '../src/ol/layer.js';
 import {createEmpty, extend, getHeight, getWidth} from '../src/ol/extent.js';
+import GeoJSON from '../src/ol/format/GeoJSON.js';
+import LineString from '../src/ol/geom/LineString.js';
+import Point from '../src/ol/geom/Point.js';
+import Polygon from '../src/ol/geom/Polygon.js';
+import TileLayer from '../src/ol/layer/Tile.js';
+import VectorLayer from '../src/ol/layer/Vector.js';
 import {fromLonLat} from '../src/ol/proj.js';
+import Cluster from '../src/ol/source/Cluster.js';
+import ImageTile from '../src/ol/source/ImageTile.js';
+import VectorSource from '../src/ol/source/Vector.js';
+import CircleStyle from '../src/ol/style/Circle.js';
+import Fill from '../src/ol/style/Fill.js';
+import Icon from '../src/ol/style/Icon.js';
+import Stroke from '../src/ol/style/Stroke.js';
+import Style from '../src/ol/style/Style.js';
+import Text from '../src/ol/style/Text.js';
 
 const circleDistanceMultiplier = 1;
 const circleFootSeparation = 28;
@@ -210,7 +214,7 @@ const clusterCircles = new VectorLayer({
 });
 
 const raster = new TileLayer({
-  source: new XYZ({
+  source: new ImageTile({
     attributions:
       'Base map: <a target="_blank" href="https://basemap.at/">basemap.at</a>',
     url: 'https://maps{1-4}.wien.gv.at/basemap/bmapgrau/normal/google3857/{z}/{y}/{x}.png',

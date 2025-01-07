@@ -1,9 +1,9 @@
 /**
  * @module ol/render/canvas/ImageBuilder
  */
+import {containsCoordinate} from '../../extent.js';
 import CanvasBuilder from './Builder.js';
 import CanvasInstruction from './Instruction.js';
-import {containsCoordinate} from '../../extent.js';
 
 class CanvasImageBuilder extends CanvasBuilder {
   /**
@@ -111,6 +111,7 @@ class CanvasImageBuilder extends CanvasBuilder {
    * @param {import("../../geom/Point.js").default|import("../Feature.js").default} pointGeometry Point geometry.
    * @param {import("../../Feature.js").FeatureLike} feature Feature.
    * @param {number} [index] Render order index.
+   * @override
    */
   drawPoint(pointGeometry, feature, index) {
     if (
@@ -173,6 +174,7 @@ class CanvasImageBuilder extends CanvasBuilder {
    * @param {import("../../geom/MultiPoint.js").default|import("../Feature.js").default} multiPointGeometry MultiPoint geometry.
    * @param {import("../../Feature.js").FeatureLike} feature Feature.
    * @param {number} [index] Render order index.
+   * @override
    */
   drawMultiPoint(multiPointGeometry, feature, index) {
     if (!this.image_) {
@@ -244,6 +246,7 @@ class CanvasImageBuilder extends CanvasBuilder {
 
   /**
    * @return {import("../canvas.js").SerializableInstructions} the serializable instructions.
+   * @override
    */
   finish() {
     this.reverseHitDetectionInstructions();
@@ -267,6 +270,7 @@ class CanvasImageBuilder extends CanvasBuilder {
   /**
    * @param {import("../../style/Image.js").default} imageStyle Image style.
    * @param {Object} [sharedData] Shared data.
+   * @override
    */
   setImageStyle(imageStyle, sharedData) {
     const anchor = imageStyle.getAnchor();

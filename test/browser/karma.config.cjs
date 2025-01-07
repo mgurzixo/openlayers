@@ -1,14 +1,20 @@
-/* eslint-disable import/no-commonjs */
-
 const path = require('path');
+const puppeteer = require('puppeteer');
+
+process.env.CHROME_BIN = puppeteer.executablePath();
+
+const flags = ['--headless=new'];
+if (process.env.CI) {
+  flags.push('--no-sandbox');
+}
 
 module.exports = function (karma) {
   karma.set({
-    browsers: ['ChromeHeadlessLauncher'],
+    browsers: ['ChromeHeadless'],
     customLaunchers: {
-      ChromeHeadlessLauncher: {
+      ChromeHeadless: {
         base: 'Chrome',
-        flags: ['--headless=new'],
+        flags,
       },
     },
     browserDisconnectTolerance: 2,
@@ -23,26 +29,12 @@ module.exports = function (karma) {
       {
         pattern: path.resolve(
           __dirname,
-          require.resolve('jquery/dist/jquery.js')
+          require.resolve('jquery/dist/jquery.js'),
         ),
         watched: false,
       },
       {
         pattern: path.resolve(__dirname, require.resolve('expect.js/index.js')),
-        watched: false,
-      },
-      {
-        pattern: path.resolve(
-          __dirname,
-          require.resolve('../../node_modules/sinon/pkg/sinon.js')
-        ),
-        watched: false,
-      },
-      {
-        pattern: path.resolve(
-          __dirname,
-          require.resolve('proj4/dist/proj4.js')
-        ),
         watched: false,
       },
       {
@@ -93,7 +85,7 @@ module.exports = function (karma) {
             use: {
               loader: path.join(
                 __dirname,
-                '../../examples/webpack/worker-loader.cjs'
+                '../../examples/webpack/worker-loader.cjs',
               ),
             },
             include: [path.join(__dirname, '../../src/ol/worker')],

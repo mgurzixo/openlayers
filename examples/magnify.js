@@ -1,9 +1,9 @@
 import Map from '../src/ol/Map.js';
-import TileLayer from '../src/ol/layer/Tile.js';
 import View from '../src/ol/View.js';
-import XYZ from '../src/ol/source/XYZ.js';
+import TileLayer from '../src/ol/layer/Tile.js';
 import {fromLonLat} from '../src/ol/proj.js';
 import {getRenderPixel} from '../src/ol/render.js';
+import ImageTile from '../src/ol/source/ImageTile.js';
 
 const key = 'get_your_own_D6rA4zTHduk6KOKTXzGB';
 const attributions =
@@ -11,9 +11,10 @@ const attributions =
   '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>';
 
 const imagery = new TileLayer({
-  source: new XYZ({
+  source: new ImageTile({
     attributions: attributions,
-    url: 'https://api.maptiler.com/tiles/satellite/{z}/{x}/{y}.jpg?key=' + key,
+    url: 'https://api.maptiler.com/maps/satellite/{z}/{x}/{y}.jpg?key=' + key,
+    tileSize: 512,
     maxZoom: 20,
     crossOrigin: '',
   }),
@@ -47,7 +48,7 @@ document.addEventListener('keydown', function (evt) {
 let mousePosition = null;
 
 container.addEventListener('mousemove', function (event) {
-  mousePosition = map.getEventPixel(event);
+  mousePosition = event.pixel;
   map.render();
 });
 

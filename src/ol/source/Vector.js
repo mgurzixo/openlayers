@@ -4,22 +4,22 @@
 
 import Collection from '../Collection.js';
 import CollectionEventType from '../CollectionEventType.js';
+import ObjectEventType from '../ObjectEventType.js';
+import {extend} from '../array.js';
+import {assert} from '../asserts.js';
 import Event from '../events/Event.js';
 import EventType from '../events/EventType.js';
-import ObjectEventType from '../ObjectEventType.js';
-import RBush from '../structs/RBush.js';
-import RenderFeature from '../render/Feature.js';
-import Source from './Source.js';
-import VectorEventType from './VectorEventType.js';
+import {listen, unlistenByKey} from '../events.js';
+import {containsExtent, equals, wrapAndSliceX} from '../extent.js';
+import {xhr} from '../featureloader.js';
 import {TRUE, VOID} from '../functions.js';
 import {all as allStrategy} from '../loadingstrategy.js';
-import {assert} from '../asserts.js';
-import {containsExtent, equals, wrapAndSliceX} from '../extent.js';
-import {extend} from '../array.js';
-import {getUid} from '../util.js';
 import {isEmpty} from '../obj.js';
-import {listen, unlistenByKey} from '../events.js';
-import {xhr} from '../featureloader.js';
+import RenderFeature from '../render/Feature.js';
+import RBush from '../structs/RBush.js';
+import {getUid} from '../util.js';
+import Source from './Source.js';
+import VectorEventType from './VectorEventType.js';
 
 /**
  * A function that takes an {@link module:ol/extent~Extent} and a resolution as arguments, and
@@ -34,27 +34,27 @@ import {xhr} from '../featureloader.js';
  * @classdesc
  * Events emitted by {@link module:ol/source/Vector~VectorSource} instances are instances of this
  * type.
- * @template {import("../Feature.js").FeatureLike} [FeatureClass=import("../Feature.js").default]
+ * @template {import("../Feature.js").FeatureLike} [FeatureType=import("../Feature.js").default]
  */
 export class VectorSourceEvent extends Event {
   /**
    * @param {string} type Type.
-   * @param {FeatureClass} [feature] Feature.
-   * @param {Array<FeatureClass>} [features] Features.
+   * @param {FeatureType} [feature] Feature.
+   * @param {Array<FeatureType>} [features] Features.
    */
   constructor(type, feature, features) {
     super(type);
 
     /**
      * The added or removed feature for the `ADDFEATURE` and `REMOVEFEATURE` events, `undefined` otherwise.
-     * @type {FeatureClass|undefined}
+     * @type {FeatureType|undefined}
      * @api
      */
     this.feature = feature;
 
     /**
      * The loaded features for the `FEATURESLOADED` event, `undefined` otherwise.
-     * @type {Array<FeatureClass>|undefined}
+     * @type {Array<FeatureType>|undefined}
      * @api
      */
     this.features = features;
@@ -68,23 +68,24 @@ export class VectorSourceEvent extends Event {
 
 /***
  * @template Return
+ * @template {import("../Feature.js").FeatureLike} [FeatureType=import("../Feature.js").default]
  * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event.js").default, Return> &
  *   import("../Observable").OnSignature<import("../ObjectEventType").Types, import("../Object").ObjectEvent, Return> &
- *   import("../Observable").OnSignature<import("./VectorEventType").VectorSourceEventTypes, VectorSourceEvent, Return> &
+ *   import("../Observable").OnSignature<import("./VectorEventType").VectorSourceEventTypes, VectorSourceEvent<FeatureType>, Return> &
  *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("../ObjectEventType").Types|
  *     import("./VectorEventType").VectorSourceEventTypes, Return>} VectorSourceOnSignature
  */
 
 /**
- * @template {import("../Feature.js").FeatureLike} FeatureType
+ * @template {import("../Feature.js").FeatureLike} [FeatureType=import("../Feature.js").default]
  * @typedef {Object} Options
  * @property {import("./Source.js").AttributionLike} [attributions] Attributions.
  * @property {Array<FeatureType>|Collection<FeatureType>} [features]
  * Features. If provided as {@link module:ol/Collection~Collection}, the features in the source
  * and the collection will stay in sync.
- * @property {import("../format/Feature.js").default<import("../format/Feature.js").FeatureToFeatureClass<FeatureType>>} [format] The feature format used by the XHR
+ * @property {import("../format/Feature.js").default<FeatureType>} [format] The feature format used by the XHR
  * feature loader when `url` is set. Required if `url` is set, otherwise ignored.
- * @property {import("../featureloader.js").FeatureLoader} [loader]
+ * @property {import("../featureloader.js").FeatureLoader<FeatureType>} [loader]
  * The loader function used to load features, from a remote source for example.
  * If this is not set and `url` is set, the source will create and use an XHR
  * feature loader. The `'featuresloadend'` and `'featuresloaderror'` events
@@ -194,12 +195,12 @@ class VectorSource extends Source {
     });
 
     /***
-     * @type {VectorSourceOnSignature<import("../events").EventsKey>}
+     * @type {VectorSourceOnSignature<import("../events").EventsKey, FeatureType>}
      */
     this.on;
 
     /***
-     * @type {VectorSourceOnSignature<import("../events").EventsKey>}
+     * @type {VectorSourceOnSignature<import("../events").EventsKey, FeatureType>}
      */
     this.once;
 
@@ -210,15 +211,15 @@ class VectorSource extends Source {
 
     /**
      * @private
-     * @type {import("../featureloader.js").FeatureLoader}
+     * @type {import("../featureloader.js").FeatureLoader<FeatureType>}
      */
     this.loader_ = VOID;
 
     /**
      * @private
-     * @type {import("../format/Feature.js").default<import('../format/Feature.js').FeatureToFeatureClass<FeatureType>>|undefined}
+     * @type {import("../format/Feature.js").default<FeatureType>|null}
      */
-    this.format_ = options.format;
+    this.format_ = options.format || null;
 
     /**
      * @private
@@ -237,10 +238,7 @@ class VectorSource extends Source {
     } else if (this.url_ !== undefined) {
       assert(this.format_, '`format` must be set when `url` is set');
       // create a XHR feature loader for "url" and "format"
-      this.loader_ = xhr(
-        this.url_,
-        /** @type {import("../format/Feature.js").default} */ (this.format_),
-      );
+      this.loader_ = xhr(this.url_, this.format_);
     }
 
     /**
@@ -330,7 +328,7 @@ class VectorSource extends Source {
    * instead. A feature will not be added to the source if feature with
    * the same id is already there. The reason for this behavior is to avoid
    * feature duplication when using bbox or tile loading strategies.
-   * Note: this also applies if an {@link module:ol/Collection~Collection} is used for features,
+   * Note: this also applies if a {@link module:ol/Collection~Collection} is used for features,
    * meaning that if a feature with a duplicate id is added in the collection, it will
    * be removed from it right away.
    * @param {FeatureType} feature Feature to add.
@@ -410,12 +408,10 @@ class VectorSource extends Source {
         const indexedFeature = this.idIndex_[id];
         if (!(indexedFeature instanceof RenderFeature)) {
           valid = false;
+        } else if (!Array.isArray(indexedFeature)) {
+          this.idIndex_[id] = [indexedFeature, feature];
         } else {
-          if (!Array.isArray(indexedFeature)) {
-            this.idIndex_[id] = [indexedFeature, feature];
-          } else {
-            indexedFeature.push(feature);
-          }
+          indexedFeature.push(feature);
         }
       } else {
         valid = false;
@@ -450,7 +446,7 @@ class VectorSource extends Source {
     const extents = [];
     /** @type {Array<FeatureType>} */
     const newFeatures = [];
-    /** @type Array<FeatureType> */
+    /** @type {Array<FeatureType>} */
     const geometryFeatures = [];
 
     for (let i = 0, length = features.length; i < length; i++) {
@@ -567,10 +563,9 @@ class VectorSource extends Source {
       }
     } else {
       if (this.featuresRtree_) {
-        const removeAndIgnoreReturn = (feature) => {
+        this.featuresRtree_.forEach((feature) => {
           this.removeFeatureInternal(feature);
-        };
-        this.featuresRtree_.forEach(removeAndIgnoreReturn);
+        });
         for (const id in this.nullGeometryFeatures_) {
           this.removeFeatureInternal(this.nullGeometryFeatures_[id]);
         }
@@ -708,7 +703,7 @@ class VectorSource extends Source {
   /**
    * Get the features collection associated with this source. Will be `null`
    * unless the source was configured with `useSpatialIndex` set to `false`, or
-   * with an {@link module:ol/Collection~Collection} as `features`.
+   * with a {@link module:ol/Collection~Collection} as `features`.
    * @return {Collection<FeatureType>|null} The collection of features.
    * @api
    */
@@ -738,10 +733,11 @@ class VectorSource extends Source {
   /**
    * Get all features whose geometry intersects the provided coordinate.
    * @param {import("../coordinate.js").Coordinate} coordinate Coordinate.
-   * @return {Array<import("../Feature.js").default>} Features.
+   * @return {Array<FeatureType>} Features.
    * @api
    */
   getFeaturesAtCoordinate(coordinate) {
+    /** @type {Array<FeatureType>} */
     const features = [];
     this.forEachFeatureAtCoordinateDirect(coordinate, function (feature) {
       features.push(feature);
@@ -891,7 +887,7 @@ class VectorSource extends Source {
   /**
    * Get the format associated with this source.
    *
-   * @return {import("../format/Feature.js").default<import('../format/Feature.js').FeatureToFeatureClass<FeatureType>>|undefined} The feature format.
+   * @return {import("../format/Feature.js").default<FeatureType>|null}} The feature format.
    * @api
    */
   getFormat() {
@@ -1019,6 +1015,9 @@ class VectorSource extends Source {
           extentToLoad,
           resolution,
           projection,
+          /**
+           * @param {Array<FeatureType>} features Loaded features
+           */
           (features) => {
             --this.loadingExtentsCount_;
             this.dispatchEvent(
@@ -1043,6 +1042,9 @@ class VectorSource extends Source {
       this.loader_.length < 4 ? false : this.loadingExtentsCount_ > 0;
   }
 
+  /**
+   * @override
+   */
   refresh() {
     this.clear(true);
     this.loadedExtentsRtree_.clear();
@@ -1056,11 +1058,9 @@ class VectorSource extends Source {
    */
   removeLoadedExtent(extent) {
     const loadedExtentsRtree = this.loadedExtentsRtree_;
-    let obj;
-    loadedExtentsRtree.forEachInExtent(extent, function (object) {
+    const obj = loadedExtentsRtree.forEachInExtent(extent, function (object) {
       if (equals(object.extent, extent)) {
-        obj = object;
-        return true;
+        return object;
       }
     });
     if (obj) {
@@ -1069,8 +1069,25 @@ class VectorSource extends Source {
   }
 
   /**
-   * Remove a single feature from the source.  If you want to remove all features
+   * Batch remove features from the source.  If you want to remove all features
    * at once, use the {@link module:ol/source/Vector~VectorSource#clear #clear()} method
+   * instead.
+   * @param {Array<FeatureType>} features Features to remove.
+   * @api
+   */
+  removeFeatures(features) {
+    let removed = false;
+    for (let i = 0, ii = features.length; i < ii; ++i) {
+      removed = this.removeFeatureInternal(features[i]) || removed;
+    }
+    if (removed) {
+      this.changed();
+    }
+  }
+
+  /**
+   * Remove a single feature from the source. If you want to batch remove
+   * features, use the {@link module:ol/source/Vector~VectorSource#removeFeatures #removeFeatures()} method
    * instead.
    * @param {FeatureType} feature Feature to remove.
    * @api
@@ -1079,16 +1096,8 @@ class VectorSource extends Source {
     if (!feature) {
       return;
     }
-    const featureKey = getUid(feature);
-    if (featureKey in this.nullGeometryFeatures_) {
-      delete this.nullGeometryFeatures_[featureKey];
-    } else {
-      if (this.featuresRtree_) {
-        this.featuresRtree_.remove(feature);
-      }
-    }
-    const result = this.removeFeatureInternal(feature);
-    if (result) {
+    const removed = this.removeFeatureInternal(feature);
+    if (removed) {
       this.changed();
     }
   }
@@ -1096,59 +1105,68 @@ class VectorSource extends Source {
   /**
    * Remove feature without firing a `change` event.
    * @param {FeatureType} feature Feature.
-   * @return {FeatureType|undefined} The removed feature
-   *     (or undefined if the feature was not found).
+   * @return {boolean} True if the feature was removed, false if it was not found.
    * @protected
    */
   removeFeatureInternal(feature) {
     const featureKey = getUid(feature);
-    const featureChangeKeys = this.featureChangeKeys_[featureKey];
-    if (!featureChangeKeys) {
-      return;
+    if (!(featureKey in this.uidIndex_)) {
+      return false;
     }
-    featureChangeKeys.forEach(unlistenByKey);
+
+    if (featureKey in this.nullGeometryFeatures_) {
+      delete this.nullGeometryFeatures_[featureKey];
+    } else {
+      if (this.featuresRtree_) {
+        this.featuresRtree_.remove(feature);
+      }
+    }
+
+    const featureChangeKeys = this.featureChangeKeys_[featureKey];
+    featureChangeKeys?.forEach(unlistenByKey);
     delete this.featureChangeKeys_[featureKey];
+
     const id = feature.getId();
     if (id !== undefined) {
-      delete this.idIndex_[id.toString()];
+      const idString = id.toString();
+      const indexedFeature = this.idIndex_[idString];
+      if (indexedFeature === feature) {
+        delete this.idIndex_[idString];
+      } else if (Array.isArray(indexedFeature)) {
+        indexedFeature.splice(indexedFeature.indexOf(feature), 1);
+        if (indexedFeature.length === 1) {
+          this.idIndex_[idString] = indexedFeature[0];
+        }
+      }
     }
     delete this.uidIndex_[featureKey];
-    this.dispatchEvent(
-      new VectorSourceEvent(VectorEventType.REMOVEFEATURE, feature),
-    );
-    return feature;
+    if (this.hasListener(VectorEventType.REMOVEFEATURE)) {
+      this.dispatchEvent(
+        new VectorSourceEvent(VectorEventType.REMOVEFEATURE, feature),
+      );
+    }
+    return true;
   }
 
   /**
    * Remove a feature from the id index.  Called internally when the feature id
    * may have changed.
    * @param {FeatureType} feature The feature.
-   * @return {boolean} Removed the feature from the index.
    * @private
    */
   removeFromIdIndex_(feature) {
-    let removed = false;
     for (const id in this.idIndex_) {
-      const indexedFeature = this.idIndex_[id];
-      if (
-        feature instanceof RenderFeature &&
-        Array.isArray(indexedFeature) &&
-        indexedFeature.includes(feature)
-      ) {
-        indexedFeature.splice(indexedFeature.indexOf(feature), 1);
-      } else if (this.idIndex_[id] === feature) {
+      if (this.idIndex_[id] === feature) {
         delete this.idIndex_[id];
-        removed = true;
         break;
       }
     }
-    return removed;
   }
 
   /**
    * Set the new loader of the source. The next render cycle will use the
    * new loader.
-   * @param {import("../featureloader.js").FeatureLoader} loader The loader to set.
+   * @param {import("../featureloader.js").FeatureLoader<FeatureType>} loader The loader to set.
    * @api
    */
   setLoader(loader) {
@@ -1164,6 +1182,14 @@ class VectorSource extends Source {
     assert(this.format_, '`format` must be set when `url` is set');
     this.url_ = url;
     this.setLoader(xhr(url, this.format_));
+  }
+
+  /**
+   * @param {boolean} overlaps The source can have overlapping geometries.
+   */
+  setOverlaps(overlaps) {
+    this.overlaps_ = overlaps;
+    this.changed();
   }
 }
 

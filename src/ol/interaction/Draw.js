@@ -1,24 +1,15 @@
 /**
  * @module ol/interaction/Draw
  */
-import Circle from '../geom/Circle.js';
-import Event from '../events/Event.js';
-import EventType from '../events/EventType.js';
 import Feature from '../Feature.js';
-import GeometryCollection from '../geom/GeometryCollection.js';
-import InteractionProperty from './Property.js';
-import LineString from '../geom/LineString.js';
 import MapBrowserEvent from '../MapBrowserEvent.js';
 import MapBrowserEventType from '../MapBrowserEventType.js';
-import MultiLineString from '../geom/MultiLineString.js';
-import MultiPoint from '../geom/MultiPoint.js';
-import MultiPolygon from '../geom/MultiPolygon.js';
-import Point from '../geom/Point.js';
-import PointerInteraction from './Pointer.js';
-import Polygon, {fromCircle, makeRegular} from '../geom/Polygon.js';
-import VectorLayer from '../layer/Vector.js';
-import VectorSource from '../source/Vector.js';
-import {FALSE, TRUE} from '../functions.js';
+import {
+  distance,
+  squaredDistance as squaredCoordinateDistance,
+} from '../coordinate.js';
+import Event from '../events/Event.js';
+import EventType from '../events/EventType.js';
 import {
   always,
   never,
@@ -32,14 +23,23 @@ import {
   getTopLeft,
   getTopRight,
 } from '../extent.js';
-import {clamp, squaredDistance, toFixed} from '../math.js';
-import {createEditingStyle} from '../style/Style.js';
-import {
-  distance,
-  squaredDistance as squaredCoordinateDistance,
-} from '../coordinate.js';
-import {fromUserCoordinate, getUserProjection} from '../proj.js';
+import {FALSE, TRUE} from '../functions.js';
+import Circle from '../geom/Circle.js';
+import GeometryCollection from '../geom/GeometryCollection.js';
+import LineString from '../geom/LineString.js';
+import MultiLineString from '../geom/MultiLineString.js';
+import MultiPoint from '../geom/MultiPoint.js';
+import MultiPolygon from '../geom/MultiPolygon.js';
+import Point from '../geom/Point.js';
+import Polygon, {fromCircle, makeRegular} from '../geom/Polygon.js';
 import {getStrideForLayout} from '../geom/SimpleGeometry.js';
+import VectorLayer from '../layer/Vector.js';
+import {clamp, squaredDistance, toFixed} from '../math.js';
+import {fromUserCoordinate, getUserProjection} from '../proj.js';
+import VectorSource from '../source/Vector.js';
+import {createEditingStyle} from '../style/Style.js';
+import PointerInteraction from './Pointer.js';
+import InteractionProperty from './Property.js';
 
 /**
  * @typedef {Object} Options
@@ -67,7 +67,7 @@ import {getStrideForLayout} from '../geom/SimpleGeometry.js';
  * before a polygon ring or line string can be finished. Default is `3` for
  * polygon rings and `2` for line strings.
  * @property {import("../events/condition.js").Condition} [finishCondition] A function
- * that takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
+ * that takes a {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
  * boolean to indicate whether the drawing can be finished. Not used when drawing
  * POINT or MULTI_POINT geometries.
  * @property {import("../style/Style.js").StyleLike|import("../style/flat.js").FlatStyleLike} [style]
@@ -85,7 +85,7 @@ import {getStrideForLayout} from '../geom/SimpleGeometry.js';
  * @property {string} [geometryName] Geometry name to use for features created
  * by the draw interaction.
  * @property {import("../events/condition.js").Condition} [condition] A function that
- * takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
+ * takes a {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
  * boolean to indicate whether that event should be handled.
  * By default {@link module:ol/events/condition.noModifierKeys}, i.e. a click,
  * adds a vertex or deactivates freehand drawing.
@@ -94,7 +94,7 @@ import {getStrideForLayout} from '../geom/SimpleGeometry.js';
  * mode and takes precedence over any `freehandCondition` option.
  * @property {import("../events/condition.js").Condition} [freehandCondition]
  * Condition that activates freehand drawing for lines and polygons. This
- * function takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and
+ * function takes a {@link module:ol/MapBrowserEvent~MapBrowserEvent} and
  * returns a boolean to indicate whether that event should be handled. The
  * default is {@link module:ol/events/condition.shiftKeyOnly}, meaning that the
  * Shift key activates freehand drawing.
@@ -755,7 +755,7 @@ class Draw extends PointerInteraction {
          * @param {import("../proj/Projection.js").default} projection The view projection.
          * @return {import("../geom/SimpleGeometry.js").default} A geometry.
          */
-        geometryFunction = function (coordinates, geometry, projection) {
+        geometryFunction = (coordinates, geometry, projection) => {
           const circle = geometry
             ? /** @type {Circle} */ (geometry)
             : new Circle([NaN, NaN]);
@@ -790,7 +790,7 @@ class Draw extends PointerInteraction {
          * @param {import("../proj/Projection.js").default} projection The view projection.
          * @return {import("../geom/SimpleGeometry.js").default} A geometry.
          */
-        geometryFunction = function (coordinates, geometry, projection) {
+        geometryFunction = (coordinates, geometry, projection) => {
           if (geometry) {
             if (mode === 'Polygon') {
               if (coordinates[0].length) {
@@ -965,6 +965,7 @@ class Draw extends PointerInteraction {
    * Subclasses may set up event handlers to get notified about changes to
    * the map here.
    * @param {import("../Map.js").default} map Map.
+   * @override
    */
   setMap(map) {
     super.setMap(map);
@@ -985,6 +986,7 @@ class Draw extends PointerInteraction {
    * @param {import("../MapBrowserEvent.js").default} event Map browser event.
    * @return {boolean} `false` to stop event propagation.
    * @api
+   * @override
    */
   handleEvent(event) {
     if (event.originalEvent.type === EventType.CONTEXTMENU) {
@@ -1050,6 +1052,7 @@ class Draw extends PointerInteraction {
    * Handle pointer down events.
    * @param {import("../MapBrowserEvent.js").default} event Event.
    * @return {boolean} If the event was consumed.
+   * @override
    */
   handleDownEvent(event) {
     this.shouldHandle_ = !this.freehand_;
@@ -1300,6 +1303,7 @@ class Draw extends PointerInteraction {
    * Handle pointer up events.
    * @param {import("../MapBrowserEvent.js").default} event Event.
    * @return {boolean} If the event was consumed.
+   * @override
    */
   handleUpEvent(event) {
     let pass = true;

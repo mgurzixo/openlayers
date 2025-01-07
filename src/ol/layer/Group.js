@@ -1,20 +1,20 @@
 /**
  * @module ol/layer/Group
  */
-import BaseLayer from './Base.js';
 import Collection from '../Collection.js';
 import CollectionEventType from '../CollectionEventType.js';
-import Event from '../events/Event.js';
-import EventType from '../events/EventType.js';
 import ObjectEventType from '../ObjectEventType.js';
 import {assert} from '../asserts.js';
-import {clear} from '../obj.js';
-import {getIntersection} from '../extent.js';
-import {getUid} from '../util.js';
+import Event from '../events/Event.js';
+import EventType from '../events/EventType.js';
 import {listen, unlistenByKey} from '../events.js';
+import {getIntersection} from '../extent.js';
+import {clear} from '../obj.js';
+import {getUid} from '../util.js';
+import BaseLayer from './Base.js';
 
 /**
- * @typedef {'addlayer'|'removelayer'} EventType
+ * @typedef {'addlayer'|'removelayer'} GroupEventType
  */
 
 /**
@@ -25,7 +25,7 @@ import {listen, unlistenByKey} from '../events.js';
  */
 export class GroupEvent extends Event {
   /**
-   * @param {EventType} type The event type.
+   * @param {GroupEventType} type The event type.
    * @param {BaseLayer} layer The layer.
    */
   constructor(type, layer) {
@@ -282,6 +282,7 @@ class LayerGroup extends BaseLayer {
   /**
    * @param {Array<import("./Layer.js").default>} [array] Array of layers (to be modified in place).
    * @return {Array<import("./Layer.js").default>} Array of layers.
+   * @override
    */
   getLayersArray(array) {
     array = array !== undefined ? array : [];
@@ -299,6 +300,7 @@ class LayerGroup extends BaseLayer {
    * @param {Array<import("./Layer.js").State>} [dest] Optional list
    * of layer states (to be modified in place).
    * @return {Array<import("./Layer.js").State>} List of layer states.
+   * @override
    */
   getLayerStatesArray(dest) {
     const states = dest !== undefined ? dest : [];
@@ -347,6 +349,7 @@ class LayerGroup extends BaseLayer {
 
   /**
    * @return {import("../source/Source.js").State} Source state.
+   * @override
    */
   getSourceState() {
     return 'ready';

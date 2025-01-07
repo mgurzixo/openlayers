@@ -1,10 +1,10 @@
+import Map from '../src/ol/Map.js';
+import View from '../src/ol/View.js';
 import GeoJSON from '../src/ol/format/GeoJSON.js';
 import Link from '../src/ol/interaction/Link.js';
-import Map from '../src/ol/Map.js';
 import TileLayer from '../src/ol/layer/Tile.js';
 import VectorLayer from '../src/ol/layer/Vector.js';
 import VectorSource from '../src/ol/source/Vector.js';
-import View from '../src/ol/View.js';
 import XYZ from '../src/ol/source/XYZ.js';
 
 const populatedPlaces = new VectorLayer({
@@ -46,7 +46,8 @@ const map = new Map({
           '<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> ' +
           '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>',
         url:
-          'https://api.maptiler.com/tiles/satellite/{z}/{x}/{y}.jpg?key=' + key,
+          'https://api.maptiler.com/maps/satellite/{z}/{x}/{y}.jpg?key=' + key,
+        tileSize: 512,
         maxZoom: 20,
       }),
     }),
@@ -100,8 +101,7 @@ map.on('pointermove', function (evt) {
     currentFeature = undefined;
     return;
   }
-  const pixel = map.getEventPixel(evt.originalEvent);
-  displayFeatureInfo(pixel, evt.frameState.size[0]);
+  displayFeatureInfo(evt.pixel, evt.frameState.size[0]);
 });
 
 map.on('click', function (evt) {

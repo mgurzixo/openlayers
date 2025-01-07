@@ -2,18 +2,16 @@
  * @module ol/interaction/Snap
  */
 import CollectionEventType from '../CollectionEventType.js';
-import EventType from '../events/EventType.js';
-import PointerInteraction from './Pointer.js';
-import RBush from '../structs/RBush.js';
-import VectorEventType from '../source/VectorEventType.js';
-import {FALSE, TRUE} from '../functions.js';
-import {SnapEvent, SnapEventType} from '../events/SnapEvent.js';
-import {boundingExtent, buffer, createEmpty} from '../extent.js';
 import {
   closestOnCircle,
   closestOnSegment,
   squaredDistance,
 } from '../coordinate.js';
+import EventType from '../events/EventType.js';
+import {SnapEvent, SnapEventType} from '../events/SnapEvent.js';
+import {listen, unlistenByKey} from '../events.js';
+import {boundingExtent, buffer, createEmpty} from '../extent.js';
+import {FALSE, TRUE} from '../functions.js';
 import {fromCircle} from '../geom/Polygon.js';
 import {
   fromUserCoordinate,
@@ -21,8 +19,10 @@ import {
   toUserCoordinate,
   toUserExtent,
 } from '../proj.js';
+import VectorEventType from '../source/VectorEventType.js';
+import RBush from '../structs/RBush.js';
 import {getUid} from '../util.js';
-import {listen, unlistenByKey} from '../events.js';
+import PointerInteraction from './Pointer.js';
 
 /**
  * @typedef {Object} Result
@@ -92,7 +92,7 @@ const tempSegment = [];
  * as it is added before.
  *
  * The snap interaction modifies map browser event `coordinate` and `pixel`
- * properties to force the snap to occur to any interaction that them.
+ * properties to force the snap to occur to any interaction that uses them.
  *
  * Example:
  *
@@ -292,6 +292,7 @@ class Snap extends PointerInteraction {
    * @param {import("../MapBrowserEvent.js").default} evt Map browser event.
    * @return {boolean} `false` to stop event propagation.
    * @api
+   * @override
    */
   handleEvent(evt) {
     const result = this.snapTo(evt.pixel, evt.coordinate, evt.map);
@@ -352,6 +353,7 @@ class Snap extends PointerInteraction {
    * Handle pointer up events.
    * @param {import("../MapBrowserEvent.js").default} evt Event.
    * @return {boolean} If the event was consumed.
+   * @override
    */
   handleUpEvent(evt) {
     const featuresToUpdate = Object.values(this.pendingFeatures_);
@@ -397,6 +399,7 @@ class Snap extends PointerInteraction {
    * Subclasses may set up event handlers to get notified about changes to
    * the map here.
    * @param {import("../Map.js").default} map Map.
+   * @override
    */
   setMap(map) {
     const currentMap = this.getMap();
@@ -554,6 +557,7 @@ class Snap extends PointerInteraction {
                 ? null
                 : segmentData.segment;
             minSquaredDistance = delta;
+            closestFeature = segmentData.feature;
           }
         }
       }

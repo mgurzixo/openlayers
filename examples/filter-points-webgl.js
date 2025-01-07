@@ -1,12 +1,12 @@
 import Feature from '../src/ol/Feature.js';
 import Map from '../src/ol/Map.js';
-import Point from '../src/ol/geom/Point.js';
-import StadiaMaps from '../src/ol/source/StadiaMaps.js';
-import TileLayer from '../src/ol/layer/Tile.js';
 import View from '../src/ol/View.js';
+import Point from '../src/ol/geom/Point.js';
+import TileLayer from '../src/ol/layer/Tile.js';
 import WebGLPointsLayer from '../src/ol/layer/WebGLPoints.js';
-import {Vector} from '../src/ol/source.js';
 import {fromLonLat} from '../src/ol/proj.js';
+import StadiaMaps from '../src/ol/source/StadiaMaps.js';
+import Vector from '../src/ol/source/Vector.js';
 
 const vectorSource = new Vector({
   attributions: 'NASA',
@@ -34,11 +34,6 @@ const animRatio = [
 ];
 
 const style = {
-  variables: {
-    minYear: 1850,
-    maxYear: 2015,
-  },
-  filter: ['between', ['get', 'year'], ['var', 'minYear'], ['var', 'maxYear']],
   'circle-radius': [
     '*',
     ['interpolate', ['linear'], ['get', 'mass'], 0, 4, 200000, 13],
@@ -56,6 +51,17 @@ const style = {
   'circle-opacity': ['-', 1.0, ['*', animRatio, 0.75]],
 };
 
+const pointsLayer = new WebGLPointsLayer({
+  variables: {
+    minYear: 1850,
+    maxYear: 2015,
+  },
+  style,
+  filter: ['between', ['get', 'year'], ['var', 'minYear'], ['var', 'maxYear']],
+  source: vectorSource,
+  disableHitDetection: true,
+});
+
 // handle input values & events
 const minYearInput = document.getElementById('min-year');
 const maxYearInput = document.getElementById('max-year');
@@ -67,11 +73,11 @@ function updateStatusText() {
 }
 
 minYearInput.addEventListener('input', function () {
-  style.variables.minYear = parseInt(minYearInput.value);
+  pointsLayer.updateStyleVariables({minYear: parseInt(minYearInput.value)});
   updateStatusText();
 });
 maxYearInput.addEventListener('input', function () {
-  style.variables.maxYear = parseInt(maxYearInput.value);
+  pointsLayer.updateStyleVariables({maxYear: parseInt(minYearInput.value)});
   updateStatusText();
 });
 updateStatusText();
@@ -116,11 +122,7 @@ const map = new Map({
         layer: 'stamen_toner',
       }),
     }),
-    new WebGLPointsLayer({
-      style: style,
-      source: vectorSource,
-      disableHitDetection: true,
-    }),
+    pointsLayer,
   ],
   target: document.getElementById('map'),
   view: new View({

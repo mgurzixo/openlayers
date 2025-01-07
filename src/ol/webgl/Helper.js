@@ -1,9 +1,15 @@
 /**
  * @module ol/webgl/Helper
  */
-import ContextEventType from '../webgl/ContextEventType.js';
 import Disposable from '../Disposable.js';
-import WebGLPostProcessingPass from './PostProcessingPass.js';
+import {clear} from '../obj.js';
+import {
+  compose as composeTransform,
+  create as createTransform,
+} from '../transform.js';
+import {getUid} from '../util.js';
+import {create, fromTransform} from '../vec/mat4.js';
+import ContextEventType from '../webgl/ContextEventType.js';
 import {
   FLOAT,
   UNSIGNED_BYTE,
@@ -11,13 +17,7 @@ import {
   UNSIGNED_SHORT,
   getContext,
 } from '../webgl.js';
-import {clear} from '../obj.js';
-import {
-  compose as composeTransform,
-  create as createTransform,
-} from '../transform.js';
-import {create, fromTransform} from '../vec/mat4.js';
-import {getUid} from '../util.js';
+import WebGLPostProcessingPass from './PostProcessingPass.js';
 
 /**
  * @typedef {Object} BufferCacheEntry
@@ -195,14 +195,14 @@ function releaseCanvas(key) {
  *
  * ### Define custom shaders and uniforms
  *
- *   *Shaders* are low-level programs executed on the GPU and written in GLSL. There are two types of shaders:
+ *   Shaders* are low-level programs executed on the GPU and written in GLSL. There are two types of shaders:
  *
  *   Vertex shaders are used to manipulate the position and attribute of *vertices* of rendered primitives (ie. corners of a square).
  *   Outputs are:
  *
- *   * `gl_Position`: position of the vertex in screen space
+ *   `gl_Position`: position of the vertex in screen space
  *
- *   * Varyings usually prefixed with `v_` are passed on to the fragment shader
+ *   Varyings usually prefixed with `v_` are passed on to the fragment shader
  *
  *   Fragment shaders are used to control the actual color of the pixels drawn on screen. Their only output is `gl_FragColor`.
  *
@@ -228,16 +228,16 @@ function releaseCanvas(key) {
  *
  * ### Defining post processing passes
  *
- *   *Post processing* describes the act of rendering primitives to a texture, and then rendering this texture to the final canvas
+ *   Post processing* describes the act of rendering primitives to a texture, and then rendering this texture to the final canvas
  *   while applying special effects in screen space.
  *   Typical uses are: blurring, color manipulation, depth of field, filtering...
  *
  *   The `WebGLHelper` class offers the possibility to define post processes at creation time using the `postProcesses` option.
  *   A post process step accepts the following options:
  *
- *   * `fragmentShader` and `vertexShader`: text literals in GLSL language that will be compiled and used in the post processing step.
- *   * `uniforms`: uniforms can be defined for the post processing steps just like for the main render.
- *   * `scaleRatio`: allows using an intermediate texture smaller or higher than the final canvas in the post processing step.
+ *   `fragmentShader` and `vertexShader`: text literals in GLSL language that will be compiled and used in the post processing step.
+ *   `uniforms`: uniforms can be defined for the post processing steps just like for the main render.
+ *   `scaleRatio`: allows using an intermediate texture smaller or higher than the final canvas in the post processing step.
  *     This is typically used in blur steps to reduce the performance overhead by using an already downsampled texture as input.
  *
  *   The {@link module:ol/webgl/PostProcessingPass~WebGLPostProcessingPass} class is used internally, refer to its documentation for more info.
@@ -359,7 +359,7 @@ class WebGLHelper extends Disposable {
 
     /**
      * @private
-     * @type boolean
+     * @type {boolean}
      */
     this.needsToBeRecreated_ = false;
 
@@ -527,17 +527,14 @@ class WebGLHelper extends Disposable {
    * @param {import("./Buffer.js").default} buf Buffer.
    */
   deleteBuffer(buf) {
-    const gl = this.gl_;
     const bufferKey = getUid(buf);
-    const bufferCacheEntry = this.bufferCache_[bufferKey];
-    if (bufferCacheEntry && !gl.isContextLost()) {
-      gl.deleteBuffer(bufferCacheEntry.webGlBuffer);
-    }
+    // Note: gl.deleteBuffer is not called here since we let WebGL garbage collect it automatically
     delete this.bufferCache_[bufferKey];
   }
 
   /**
    * Clean up.
+   * @override
    */
   disposeInternal() {
     const canvas = this.gl_.canvas;
@@ -602,6 +599,41 @@ class WebGLHelper extends Disposable {
   }
 
   /**
+   * @param {WebGLFramebuffer|null} frameBuffer The frame buffer.
+   * @param {WebGLTexture} [texture] The texture.
+   */
+  bindFrameBuffer(frameBuffer, texture) {
+    const gl = this.getGL();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+    if (texture) {
+      gl.framebufferTexture2D(
+        gl.FRAMEBUFFER,
+        gl.COLOR_ATTACHMENT0,
+        gl.TEXTURE_2D,
+        texture,
+        0,
+      );
+    }
+  }
+
+  /**
+   * Bind the frame buffer from the initial render.
+   */
+  bindInitialFrameBuffer() {
+    const gl = this.getGL();
+    const frameBuffer = this.postProcessPasses_[0].getFrameBuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+    const texture = this.postProcessPasses_[0].getRenderTargetTexture();
+    gl.framebufferTexture2D(
+      gl.FRAMEBUFFER,
+      gl.COLOR_ATTACHMENT0,
+      gl.TEXTURE_2D,
+      texture,
+      0,
+    );
+  }
+
+  /**
    * Prepare a program to use a texture.
    * @param {WebGLTexture} texture The texture.
    * @param {number} slot The texture slot.
@@ -612,6 +644,20 @@ class WebGLHelper extends Disposable {
     gl.activeTexture(gl.TEXTURE0 + slot);
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.uniform1i(this.getUniformLocation(uniformName), slot);
+  }
+
+  /**
+   * Set up an attribute array buffer for use in the vertex shader.
+   * @param {import("./Buffer").default} buffer The buffer.
+   * @param {string} attributeName The attribute name.
+   * @param {number} size The number of components per attribute vertex.
+   */
+  bindAttribute(buffer, attributeName, size) {
+    const gl = this.getGL();
+    this.bindBuffer(buffer);
+    const index = this.getAttributeLocation(attributeName);
+    gl.enableVertexAttribArray(index);
+    gl.vertexAttribPointer(index, size, gl.FLOAT, false, 0, 0);
   }
 
   /**
@@ -845,14 +891,16 @@ class WebGLHelper extends Disposable {
    * Set up a program for use. The program will be set as the current one. Then, the uniforms used
    * in the program will be set based on the current frame state and the helper configuration.
    * @param {WebGLProgram} program Program.
-   * @param {import("../Map.js").FrameState} frameState Frame state.
+   * @param {import("../Map.js").FrameState} [frameState] Frame state.
    */
   useProgram(program, frameState) {
     const gl = this.gl_;
     gl.useProgram(program);
     this.currentProgram_ = program;
-    this.applyFrameState(frameState);
-    this.applyUniforms(frameState);
+    if (frameState) {
+      this.applyFrameState(frameState);
+      this.applyUniforms(frameState);
+    }
   }
 
   /**
@@ -1090,25 +1138,45 @@ class WebGLHelper extends Disposable {
   /**
    * Will create or reuse a given webgl texture and apply the given size. If no image data
    * specified, the texture will be empty, otherwise image data will be used and the `size`
-   * parameter will be ignored.
+   * parameter will be ignored.  If a Uint8Array is provided for data, a size must also be provided.
    * Note: wrap parameters are set to clamp to edge, min filter is set to linear.
    * @param {Array<number>} size Expected size of the texture
-   * @param {ImageData|HTMLImageElement|HTMLCanvasElement} [data] Image data/object to bind to the texture
+   * @param {ImageData|HTMLImageElement|HTMLCanvasElement|Uint8Array|null} data Image data/object to bind to the texture
    * @param {WebGLTexture} [texture] Existing texture to reuse
+   * @param {boolean} [nearest] Use gl.NEAREST for min/mag filter.
    * @return {WebGLTexture} The generated texture
    */
-  createTexture(size, data, texture) {
+  createTexture(size, data, texture, nearest) {
     const gl = this.gl_;
     texture = texture || gl.createTexture();
+    const filter = nearest ? gl.NEAREST : gl.LINEAR;
 
-    // set params & size
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
     const level = 0;
     const internalFormat = gl.RGBA;
     const border = 0;
     const format = gl.RGBA;
     const type = gl.UNSIGNED_BYTE;
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    if (data) {
+
+    if (data instanceof Uint8Array) {
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        level,
+        internalFormat,
+        size[0],
+        size[1],
+        border,
+        format,
+        type,
+        data,
+      );
+    } else if (data) {
       gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, format, type, data);
     } else {
       gl.texImage2D(
@@ -1123,10 +1191,6 @@ class WebGLHelper extends Disposable {
         null,
       );
     }
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
     return texture;
   }
 }

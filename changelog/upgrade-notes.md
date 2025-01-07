@@ -1,5 +1,133 @@
 ## Upgrade notes
 
+### Next Release
+
+#### ol-mapbox-style compatibility
+
+This version of OpenLayers is only compatible with `ol-mapbox-style@12.4.0` or higher.
+
+#### Returning false from a one-time listener added with `once`
+
+Returning false from the listener function will now stop propagation, when the listener is added with `once`.
+Previously this only worked with the `on` method.
+
+#### The `filter` option for `WebGLPointsLayer` has changed
+
+The filter option for the `WebGLPointsLayer` must now be specified alongside other options instead of being part of the `style` object. Note that the `WebGLPointsLayer` is not part of the stable API and is subject to breaking changes between major releases.
+
+```js
+// Before
+new WebGLPointsLayer({
+  style: {
+    filter: ['between', ['get', 'year'], ['var', 'minYear'], ['var', 'maxYear']],
+    'circle-radius': 8,
+    'circle-fill-color': 'blue',
+  },
+  source: vectorSource,
+})
+
+// Now
+new WebGLPointsLayer({
+  filter: ['between', ['get', 'year'], ['var', 'minYear'], ['var', 'maxYear']],
+  style: {
+    'circle-radius': 8,
+    'circle-fill-color': 'blue',
+  },
+  source: vectorSource,
+})
+```
+
+### 10.3.0
+
+#### The `transform` function throws for unknown projections
+
+Previously, the `transform()` function from the `ol/proj` module would apply the identity transform if either the source or the destination projections were unrecognized. Now this function will throw an error if it cannot perform the transform. You can check whether a projection is registered by calling the `get()` function from `ol/proj` - this function returns `null` if the projection definition for a provided identifier is not known.
+
+#### The format of the style for `WebGLPointsLayer` has changed
+
+Such a layer would previously be created this way:
+```js
+// Before
+new WebGLPointsLayer({
+  style: {
+    // variables were part of the `style` object
+    variables: {
+      minYear: 1850,
+      maxYear: 2015,
+    },
+    filter: ['between', ['get', 'year'], ['var', 'minYear'], ['var', 'maxYear']],
+  },
+  source: vectorSource,
+})
+```
+
+From this release on, **variables are now set as a separate object** at the root of the options object:
+```js
+// Now
+new WebGLPointsLayer({
+  style: {
+    filter: ['between', ['get', 'year'], ['var', 'minYear'], ['var', 'maxYear']],
+  },
+  variables: {
+    minYear: 1850,
+    maxYear: 2015,
+  },
+  source: vectorSource,
+})
+```
+
+### 10.2.0
+
+No changes should be needed to update to this release.  See the release changelog for new features and fixes.
+
+### 10.1.0
+
+No changes should be needed to update to this release.  See the release changelog for new features and fixes.
+
+### 10.0.0
+
+#### Backwards incompatible changes
+
+##### `ol/source/VectorTile`: `getFeaturesInExtent()` method moved to `ol/layer/VectorTile`
+
+The `getFeaturesInExtent()` method of `ol/source/VectorTile` has been moved to `ol/layer/VectorTile`. The signature and behavior have not changed, so all that needs to be done is change code from e.g.
+```js
+layer.getSource().getFeaturesInExtent(extent);
+```
+to
+```js
+layer.getFeaturesInExtent(extent);
+```
+
+##### Flat styles: Removal of Type hints in `'get'` expressions
+
+For the Canvas renderer, additional arguments to the `'get'` call expression now mean access to nested properties or array items. The expression system has been improved so type hints are no longer needed. If you were previously using a type hint in a `get` expression, you have to change the expression from e.g.
+```js
+['get', 'foo', 'number[]']
+```
+to
+```js
+['get', 'foo']
+```
+
+#### Other changes
+
+##### Removal of the `opaque` option from all `Tile` sources
+
+The `opaque` option was previously used to hint the renderer to perform some optimizations on layers known to be fully opaque. This is no longer needed, and the option has been removed.
+
+### 9.2.0
+
+#### The `snap` event's feature property is now never `null`
+
+Previously, listeners for the `Snap` interaction's `snap` event received `null` as value for the `feature` property when snapped to a segment. Now, the value of the `feature` property is always set to the snapped feature.
+
+To distinguish between a vertex and a segment snap, look at the `snap` event's `segment` property. It will set to `null` on a vertex snap, and to the snapped segment on a segment snap.
+
+### 9.1.0
+
+No special changes are required when upgrading to the 9.1.0 release.
+
 ### 9.0.0
 
 #### Improved render order of decluttered items

@@ -1,8 +1,8 @@
-import Event from '../../../../../src/ol/events/Event.js';
-import EventTarget from '../../../../../src/ol/events/Target.js';
 import Map from '../../../../../src/ol/Map.js';
 import View from '../../../../../src/ol/View.js';
 import ZoomSlider from '../../../../../src/ol/control/ZoomSlider.js';
+import Event from '../../../../../src/ol/events/Event.js';
+import EventTarget from '../../../../../src/ol/events/Target.js';
 
 describe('ol.control.ZoomSlider', function () {
   let map, target, zoomslider;
@@ -30,9 +30,8 @@ describe('ol.control.ZoomSlider', function () {
   });
 
   afterEach(function () {
+    disposeMap(map);
     zoomslider.dispose();
-    map.dispose();
-    document.body.removeChild(target);
     zoomslider = null;
     map = null;
     target = null;

@@ -2,7 +2,6 @@
  * @module ol/format/WKB
  */
 import Feature from '../Feature.js';
-import FeatureFormat, {transformGeometryWithOptions} from './Feature.js';
 import GeometryCollection from '../geom/GeometryCollection.js';
 import LineString from '../geom/LineString.js';
 import MultiLineString from '../geom/MultiLineString.js';
@@ -10,9 +9,10 @@ import MultiPoint from '../geom/MultiPoint.js';
 import MultiPolygon from '../geom/MultiPolygon.js';
 import Point from '../geom/Point.js';
 import Polygon from '../geom/Polygon.js';
+import SimpleGeometry from '../geom/SimpleGeometry.js';
 import {get as getProjection} from '../proj.js';
 
-import SimpleGeometry from '../geom/SimpleGeometry.js';
+import FeatureFormat, {transformGeometryWithOptions} from './Feature.js';
 
 // WKB spec: https://www.ogc.org/standards/sfa
 // EWKB spec: https://raw.githubusercontent.com/postgis/postgis/2.1.0/doc/ZMSgeoms.txt
@@ -130,7 +130,7 @@ class WkbReader {
    * @return {import('../coordinate.js').Coordinate} coords for Point
    */
   readPoint() {
-    /** @type import('../coordinate.js').Coordinate */
+    /** @type {import('../coordinate.js').Coordinate} */
     const coords = [];
 
     coords.push(this.readDouble());
@@ -151,7 +151,7 @@ class WkbReader {
   readLineString() {
     const numPoints = this.readUint32();
 
-    /** @type Array<import('../coordinate.js').Coordinate> */
+    /** @type {Array<import('../coordinate.js').Coordinate>} */
     const coords = [];
     for (let i = 0; i < numPoints; i++) {
       coords.push(this.readPoint());
@@ -166,7 +166,7 @@ class WkbReader {
   readPolygon() {
     const numRings = this.readUint32();
 
-    /** @type Array<Array<import('../coordinate.js').Coordinate>> */
+    /** @type {Array<Array<import('../coordinate.js').Coordinate>>} */
     const rings = [];
     for (let i = 0; i < numRings; i++) {
       rings.push(this.readLineString()); // as a LinearRing
@@ -724,6 +724,7 @@ class WKB extends FeatureFormat {
 
   /**
    * @return {import("./Feature.js").Type} Format.
+   * @override
    */
   getType() {
     return this.hex_ ? 'text' : 'arraybuffer';
@@ -736,6 +737,7 @@ class WKB extends FeatureFormat {
    * @param {import("./Feature.js").ReadOptions} [options] Read options.
    * @return {import("../Feature.js").default} Feature.
    * @api
+   * @override
    */
   readFeature(source, options) {
     return new Feature({
@@ -750,6 +752,7 @@ class WKB extends FeatureFormat {
    * @param {import("./Feature.js").ReadOptions} [options] Read options.
    * @return {Array<import("../Feature.js").default>} Features.
    * @api
+   * @override
    */
   readFeatures(source, options) {
     let geometries = [];
@@ -769,6 +772,7 @@ class WKB extends FeatureFormat {
    * @param {import("./Feature.js").ReadOptions} [options] Read options.
    * @return {import("../geom/Geometry.js").default} Geometry.
    * @api
+   * @override
    */
   readGeometry(source, options) {
     const view = getDataView(source);
@@ -792,6 +796,7 @@ class WKB extends FeatureFormat {
    * @param {string|ArrayBuffer|ArrayBufferView} source Source.
    * @return {import("../proj/Projection.js").default|undefined} Projection.
    * @api
+   * @override
    */
   readProjection(source) {
     const view = this.viewCache_ || getDataView(source);
@@ -815,6 +820,7 @@ class WKB extends FeatureFormat {
    * @param {import("./Feature.js").WriteOptions} [options] Write options.
    * @return {string|ArrayBuffer} Result.
    * @api
+   * @override
    */
   writeFeature(feature, options) {
     return this.writeGeometry(feature.getGeometry(), options);
@@ -827,6 +833,7 @@ class WKB extends FeatureFormat {
    * @param {import("./Feature.js").WriteOptions} [options] Write options.
    * @return {string|ArrayBuffer} Result.
    * @api
+   * @override
    */
   writeFeatures(features, options) {
     return this.writeGeometry(
@@ -842,6 +849,7 @@ class WKB extends FeatureFormat {
    * @param {import("./Feature.js").WriteOptions} [options] Write options.
    * @return {string|ArrayBuffer} Result.
    * @api
+   * @override
    */
   writeGeometry(geometry, options) {
     options = this.adaptOptions(options);

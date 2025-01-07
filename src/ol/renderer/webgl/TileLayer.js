@@ -1,26 +1,24 @@
 /**
  * @module ol/renderer/webgl/TileLayer
  */
-import ReprojDataTile from '../../reproj/DataTile.js';
-import ReprojTile from '../../reproj/Tile.js';
 import TileState from '../../TileState.js';
-import TileTexture from '../../webgl/TileTexture.js';
-import WebGLArrayBuffer from '../../webgl/Buffer.js';
-import WebGLBaseTileLayerRenderer, {
-  Uniforms as BaseUniforms,
-  getCacheKey,
-} from './TileLayerBase.js';
-import {AttributeType} from '../../webgl/Helper.js';
-import {ELEMENT_ARRAY_BUFFER, STATIC_DRAW} from '../../webgl.js';
-import {apply as applyTransform} from '../../transform.js';
 import {
   boundingExtent,
   containsCoordinate,
   getIntersection,
 } from '../../extent.js';
 import {fromUserExtent} from '../../proj.js';
-import {fromTransform as mat4FromTransform} from '../../vec/mat4.js';
 import {toSize} from '../../size.js';
+import {apply as applyTransform} from '../../transform.js';
+import {fromTransform as mat4FromTransform} from '../../vec/mat4.js';
+import WebGLArrayBuffer from '../../webgl/Buffer.js';
+import {AttributeType} from '../../webgl/Helper.js';
+import TileTexture from '../../webgl/TileTexture.js';
+import {ELEMENT_ARRAY_BUFFER, STATIC_DRAW} from '../../webgl.js';
+import WebGLBaseTileLayerRenderer, {
+  Uniforms as BaseUniforms,
+  getCacheKey,
+} from './TileLayerBase.js';
 
 export const Uniforms = {
   ...BaseUniforms,
@@ -55,14 +53,13 @@ const attributeDescriptions = [
  * made available to shaders.
  * @property {Array<import("../../webgl/PaletteTexture.js").default>} [paletteTextures] Palette textures.
  * @property {number} [cacheSize=512] The texture cache size.
+ * @property {Array<import('./Layer.js').PostProcessesOptions>} [postProcesses] Post-processes definitions.
  */
 
 /**
- * @typedef {import("../../layer/WebGLTile.js").default} LayerType
- */
-/**
  * @typedef {import("../../webgl/TileTexture.js").TileType} TileTextureType
  */
+
 /**
  * @typedef {import("../../webgl/TileTexture.js").default} TileTextureRepresentation
  */
@@ -70,6 +67,7 @@ const attributeDescriptions = [
 /**
  * @classdesc
  * WebGL renderer for tile layers.
+ * @template {import("../../layer/WebGLTile.js").default|import("../../layer/Flow.js").default} LayerType
  * @extends {WebGLBaseTileLayerRenderer<LayerType, TileTextureType, TileTextureRepresentation>}
  * @api
  */
@@ -126,22 +124,46 @@ class WebGLTileLayerRenderer extends WebGLBaseTileLayerRenderer {
 
   /**
    * @param {Options} options Options.
+   * @override
    */
   reset(options) {
     super.reset(options);
+    if (this.helper) {
+      const gl = this.helper.getGL();
+      for (const paletteTexture of this.paletteTextures_) {
+        paletteTexture.delete(gl);
+      }
+    }
 
     this.vertexShader_ = options.vertexShader;
     this.fragmentShader_ = options.fragmentShader;
     this.paletteTextures_ = options.paletteTextures || [];
+
     if (this.helper) {
       this.program_ = this.helper.getProgram(
         this.fragmentShader_,
         this.vertexShader_,
       );
+      const gl = this.helper.getGL();
+      for (const paletteTexture of this.paletteTextures_) {
+        // upload the texture data
+        paletteTexture.getTexture(gl);
+      }
     }
   }
 
+  /**
+   * @override
+   */
   afterHelperCreated() {
+    super.afterHelperCreated();
+
+    const gl = this.helper.getGL();
+    for (const paletteTexture of this.paletteTextures_) {
+      // upload the texture data
+      paletteTexture.getTexture(gl);
+    }
+
     this.program_ = this.helper.getProgram(
       this.fragmentShader_,
       this.vertexShader_,
@@ -149,15 +171,38 @@ class WebGLTileLayerRenderer extends WebGLBaseTileLayerRenderer {
     this.helper.flushBufferData(this.indices_);
   }
 
+  /**
+   * @override
+   */
+  removeHelper() {
+    if (this.helper) {
+      const gl = this.helper.getGL();
+      for (const paletteTexture of this.paletteTextures_) {
+        paletteTexture.delete(gl);
+      }
+    }
+
+    super.removeHelper();
+  }
+
+  /**
+   * @override
+   */
   createTileRepresentation(options) {
     return new TileTexture(options);
   }
 
+  /**
+   * @override
+   */
   beforeTilesRender(frameState, tilesWithAlpha) {
     super.beforeTilesRender(frameState, tilesWithAlpha);
     this.helper.useProgram(this.program_, frameState);
   }
 
+  /**
+   * @override
+   */
   renderTile(
     tileTexture,
     tileTransform,
@@ -258,6 +303,7 @@ class WebGLTileLayerRenderer extends WebGLBaseTileLayerRenderer {
   /**
    * @param {import("../../pixel.js").Pixel} pixel Pixel.
    * @return {Uint8ClampedArray|Uint8Array|Float32Array|DataView} Data at the pixel location.
+   * @override
    */
   getData(pixel) {
     const gl = this.helper.getGL();
@@ -325,10 +371,7 @@ class WebGLTileLayerRenderer extends WebGLBaseTileLayerRenderer {
       }
       const tileTexture = tileTextureCache.get(cacheKey);
       const tile = tileTexture.tile;
-      if (
-        (tile instanceof ReprojTile || tile instanceof ReprojDataTile) &&
-        tile.getState() === TileState.EMPTY
-      ) {
+      if (tile.getState() === TileState.EMPTY) {
         return null;
       }
       if (!tileTexture.loaded) {
@@ -353,11 +396,17 @@ class WebGLTileLayerRenderer extends WebGLBaseTileLayerRenderer {
 
   /**
    * Clean up.
+   * @override
    */
   disposeInternal() {
     const helper = this.helper;
     if (helper) {
       const gl = helper.getGL();
+      for (const paletteTexture of this.paletteTextures_) {
+        paletteTexture.delete(gl);
+      }
+      this.paletteTextures_.length = 0;
+
       gl.deleteProgram(this.program_);
       delete this.program_;
       helper.deleteBuffer(this.indices_);

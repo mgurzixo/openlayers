@@ -2,20 +2,23 @@
  * @module ol/format/KML
  */
 import Feature from '../Feature.js';
-import Fill from '../style/Fill.js';
-import GeometryCollection from '../geom/GeometryCollection.js';
-import Icon from '../style/Icon.js';
 import ImageState from '../ImageState.js';
+import {extend} from '../array.js';
+import {asArray} from '../color.js';
+import GeometryCollection from '../geom/GeometryCollection.js';
 import LineString from '../geom/LineString.js';
 import MultiLineString from '../geom/MultiLineString.js';
 import MultiPoint from '../geom/MultiPoint.js';
 import MultiPolygon from '../geom/MultiPolygon.js';
 import Point from '../geom/Point.js';
 import Polygon from '../geom/Polygon.js';
+import {toRadians} from '../math.js';
+import {get as getProjection} from '../proj.js';
+import Fill from '../style/Fill.js';
+import Icon from '../style/Icon.js';
 import Stroke from '../style/Stroke.js';
 import Style from '../style/Style.js';
 import Text from '../style/Text.js';
-import XMLFeature from './XMLFeature.js';
 import {
   OBJECT_PROPERTY_NODE_FACTORY,
   XML_SCHEMA_INSTANCE_URI,
@@ -35,9 +38,8 @@ import {
   pushParseAndPop,
   pushSerializeAndPop,
 } from '../xml.js';
-import {asArray} from '../color.js';
-import {extend} from '../array.js';
-import {get as getProjection} from '../proj.js';
+import {transformGeometryWithOptions} from './Feature.js';
+import XMLFeature from './XMLFeature.js';
 import {
   readBoolean,
   readDecimal,
@@ -47,8 +49,6 @@ import {
   writeDecimalTextNode,
   writeStringTextNode,
 } from './xsd.js';
-import {toRadians} from '../math.js';
-import {transformGeometryWithOptions} from './Feature.js';
 
 /**
  * @typedef {Object} Vec2
@@ -639,6 +639,7 @@ class KML extends XMLFeature {
    * @param {Element} node Node.
    * @param {import("./Feature.js").ReadOptions} [options] Options.
    * @return {import("../Feature.js").default} Feature.
+   * @override
    */
   readFeatureFromNode(node, options) {
     if (!NAMESPACE_URIS.includes(node.namespaceURI)) {
@@ -658,6 +659,7 @@ class KML extends XMLFeature {
    * @param {Element} node Node.
    * @param {import("./Feature.js").ReadOptions} [options] Options.
    * @return {Array<import("../Feature.js").default>} Features.
+   * @override
    */
   readFeaturesFromNode(node, options) {
     if (!NAMESPACE_URIS.includes(node.namespaceURI)) {
@@ -977,6 +979,7 @@ class KML extends XMLFeature {
    * @param {import("./Feature.js").WriteOptions} [options] Options.
    * @return {Node} Node.
    * @api
+   * @override
    */
   writeFeaturesNode(features, options) {
     options = this.adaptOptions(options);
@@ -1849,7 +1852,7 @@ function readMultiGeometry(node, objectStack) {
     } else if (type == 'Polygon') {
       multiGeometry = new MultiPolygon(geometries);
       setCommonGeometryProperties(multiGeometry, geometries);
-    } else if (type == 'GeometryCollection') {
+    } else if (type == 'GeometryCollection' || type.startsWith('Multi')) {
       multiGeometry = new GeometryCollection(geometries);
     } else {
       throw new Error('Unknown geometry type found');
@@ -2165,6 +2168,7 @@ const PAIR_PARSERS = makeStructureNS(NAMESPACE_URIS, {
 });
 
 /**
+ * @this {KML}
  * @param {Element} node Node.
  * @param {Array<*>} objectStack Object stack.
  */

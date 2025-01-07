@@ -1,11 +1,11 @@
-import Circle from '../../../../../src/ol/geom/Circle.js';
 import Collection from '../../../../../src/ol/Collection.js';
 import Feature from '../../../../../src/ol/Feature.js';
-import LineString from '../../../../../src/ol/geom/LineString.js';
 import Map from '../../../../../src/ol/Map.js';
+import View from '../../../../../src/ol/View.js';
+import Circle from '../../../../../src/ol/geom/Circle.js';
+import LineString from '../../../../../src/ol/geom/LineString.js';
 import Point from '../../../../../src/ol/geom/Point.js';
 import Snap from '../../../../../src/ol/interaction/Snap.js';
-import View from '../../../../../src/ol/View.js';
 import {
   clearUserProjection,
   setUserProjection,
@@ -54,8 +54,7 @@ describe('ol.interaction.Snap', function () {
     });
 
     afterEach(function () {
-      map.dispose();
-      document.body.removeChild(target);
+      disposeMap(map);
       clearUserProjection();
     });
 
@@ -136,7 +135,7 @@ describe('ol.interaction.Snap', function () {
       };
 
       snapInteraction.on('snap', function (snapEvent) {
-        expect(snapEvent.feature).to.be(undefined);
+        expect(snapEvent.feature).to.eql(line);
         expect(snapEvent.segment).to.eql([
           [-10, 0],
           [10, 0],
@@ -176,7 +175,7 @@ describe('ol.interaction.Snap', function () {
       const coordinate = transform([7, 0], viewProjection, userProjection);
 
       snapInteraction.on('snap', function (snapEvent) {
-        expect(snapEvent.feature).to.be(undefined);
+        expect(snapEvent.feature).to.eql(line);
         expect(snapEvent.segment).to.eql([
           transform([-10, 0], viewProjection, userProjection),
           transform([10, 0], viewProjection, userProjection),
@@ -293,7 +292,7 @@ describe('ol.interaction.Snap', function () {
         map: map,
       };
       snapInteraction.on('snap', function (snapEvent) {
-        expect(snapEvent.feature).to.be(undefined);
+        expect(snapEvent.feature).to.eql(circle);
         expect(snapEvent.segment).to.be(null);
 
         expect(event.coordinate[0]).to.roughlyEqual(
@@ -337,7 +336,7 @@ describe('ol.interaction.Snap', function () {
       );
 
       snapInteraction.on('snap', function (snapEvent) {
-        expect(snapEvent.feature).to.be(undefined);
+        expect(snapEvent.feature).to.eql(circle);
         expect(snapEvent.segment).to.be(null);
 
         expect(event.coordinate[0]).to.roughlyEqual(coordinate[0], 1e-10);
@@ -489,8 +488,7 @@ describe('ol.interaction.Snap', function () {
     });
 
     afterEach(() => {
-      map.dispose();
-      document.body.removeChild(target);
+      disposeMap(map);
       clearUserProjection();
       restoreRAF();
     });

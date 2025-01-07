@@ -1,13 +1,13 @@
 import Feature from '../../../../src/ol/Feature.js';
-import Fill from '../../../../src/ol/style/Fill.js';
-import LineString from '../../../../src/ol/geom/LineString.js';
 import Map from '../../../../src/ol/Map.js';
+import View from '../../../../src/ol/View.js';
+import LineString from '../../../../src/ol/geom/LineString.js';
+import VectorLayer from '../../../../src/ol/layer/Vector.js';
+import VectorSource from '../../../../src/ol/source/Vector.js';
+import Fill from '../../../../src/ol/style/Fill.js';
 import Stroke from '../../../../src/ol/style/Stroke.js';
 import Style from '../../../../src/ol/style/Style.js';
 import Text from '../../../../src/ol/style/Text.js';
-import VectorLayer from '../../../../src/ol/layer/Vector.js';
-import VectorSource from '../../../../src/ol/source/Vector.js';
-import View from '../../../../src/ol/View.js';
 
 const vectorSource = new VectorSource();
 
@@ -153,6 +153,48 @@ feature7.setStyle(
   }),
 );
 vectorSource.addFeature(feature7);
+
+const lineString8 = lineString7.clone();
+lineString8.translate(0, 40);
+lineString8.scale(-1, -1);
+const feature8 = new Feature({geometry: lineString8});
+feature8.setStyle(
+  new Style({
+    stroke: new Stroke({color: 'blue'}),
+    text: new Text({
+      text: 'do not keep upright',
+      font: 'normal 400 12px/1 Ubuntu',
+      textBaseline: 'bottom',
+      keepUpright: false,
+      placement: 'line',
+      stroke: new Stroke({
+        color: '#0000FF',
+        width: 1,
+      }),
+    }),
+  }),
+);
+vectorSource.addFeature(feature8);
+
+const lineString9 = lineString8.clone();
+const feature9 = new Feature({geometry: lineString9});
+feature9.setStyle(
+  new Style({
+    stroke: new Stroke({color: 'blue'}),
+    text: new Text({
+      text: 'keep upright',
+      font: 'normal 400 12px/1 Ubuntu',
+      textBaseline: 'bottom',
+      keepUpright: true,
+      placement: 'line',
+      stroke: new Stroke({
+        color: '#0000FF',
+        width: 1,
+      }),
+    }),
+  }),
+);
+vectorSource.addFeature(feature9);
 
 const map = new Map({
   pixelRatio: 1,

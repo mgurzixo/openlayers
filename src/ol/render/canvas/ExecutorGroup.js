@@ -2,16 +2,16 @@
  * @module ol/render/canvas/ExecutorGroup
  */
 
-import Executor from './Executor.js';
-import {ascending} from '../../array.js';
+import {ascending, descending} from '../../array.js';
+import {createCanvasContext2D} from '../../dom.js';
 import {buffer, createEmpty, extendCoordinate} from '../../extent.js';
+import {transform2D} from '../../geom/flat/transform.js';
+import {isEmpty} from '../../obj.js';
 import {
   compose as composeTransform,
   create as createTransform,
 } from '../../transform.js';
-import {createCanvasContext2D} from '../../dom.js';
-import {isEmpty} from '../../obj.js';
-import {transform2D} from '../../geom/flat/transform.js';
+import Executor from './Executor.js';
 
 /**
  * @const
@@ -118,6 +118,7 @@ class ExecutorGroup {
     this.renderedContext_ = null;
 
     /**
+     * @private
      * @type {Object<number, Array<import("./ZIndexContext.js").default>>}
      */
     this.deferredZIndexContexts_ = {};
@@ -234,9 +235,7 @@ class ExecutorGroup {
       context.clearRect(0, 0, contextSize, contextSize);
     }
 
-    /**
-     * @type {import("../../extent.js").Extent}
-     */
+    /** @type {import("../../extent.js").Extent|undefined} */
     let hitExtent;
     if (this.renderBuffer_ !== undefined) {
       hitExtent = createEmpty();
@@ -250,14 +249,16 @@ class ExecutorGroup {
 
     const indexes = getPixelIndexArray(hitTolerance);
 
+    /** @type {import("../canvas.js").BuilderType} */
     let builderType;
 
     /**
      * @param {import("../../Feature.js").FeatureLike} feature Feature.
      * @param {import("../../geom/SimpleGeometry.js").default} geometry Geometry.
+     * @param {import('../../style/Style.js').DeclutterMode} declutterMode Declutter mode.
      * @return {T|undefined} Callback result.
      */
-    function featureCallback(feature, geometry) {
+    function featureCallback(feature, geometry, declutterMode) {
       const imageData = context.getImageData(
         0,
         0,
@@ -268,6 +269,7 @@ class ExecutorGroup {
         if (imageData[indexes[i]] > 0) {
           if (
             !declutteredFeatures ||
+            declutterMode === 'none' ||
             (builderType !== 'Image' && builderType !== 'Text') ||
             declutteredFeatures.includes(feature)
           ) {
@@ -347,7 +349,7 @@ class ExecutorGroup {
    * @param {boolean} snapToPixel Snap point symbols and test to integer pixel.
    * @param {Array<import("../canvas.js").BuilderType>} [builderTypes] Ordered replay types to replay.
    *     Default is {@link module:ol/render/replay~ALL}
-   * @param {import("rbush").default|null} [declutterTree] Declutter tree.
+   * @param {import("rbush").default<import('./Executor.js').DeclutterEntry>|null} [declutterTree] Declutter tree.
    *     When set to null, no decluttering is done, even when the executor group has a `ZIndexContext`.
    */
   execute(
@@ -359,21 +361,17 @@ class ExecutorGroup {
     builderTypes,
     declutterTree,
   ) {
-    /** @type {Array<number>} */
     const zs = Object.keys(this.executorsByZIndex_).map(Number);
-    zs.sort(ascending);
+    zs.sort(declutterTree ? descending : ascending);
 
     builderTypes = builderTypes ? builderTypes : ALL;
-    let i, ii, j, jj, replays, replay;
-    if (declutterTree) {
-      zs.reverse();
-    }
-    for (i = 0, ii = zs.length; i < ii; ++i) {
+    const maxBuilderTypes = ALL.length;
+    for (let i = 0, ii = zs.length; i < ii; ++i) {
       const zIndexKey = zs[i].toString();
-      replays = this.executorsByZIndex_[zIndexKey];
-      for (j = 0, jj = builderTypes.length; j < jj; ++j) {
+      const replays = this.executorsByZIndex_[zIndexKey];
+      for (let j = 0, jj = builderTypes.length; j < jj; ++j) {
         const builderType = builderTypes[j];
-        replay = replays[builderType];
+        const replay = replays[builderType];
         if (replay !== undefined) {
           const zIndexContext =
             declutterTree === null ? undefined : replay.getZIndexContext();
@@ -390,24 +388,41 @@ class ExecutorGroup {
             // visible outside the current extent when panning
             this.clip(context, transform);
           }
-          replay.execute(
-            context,
-            scaledCanvasSize,
-            transform,
-            viewRotation,
-            snapToPixel,
-            declutterTree,
-          );
+          if (
+            !zIndexContext ||
+            builderType === 'Text' ||
+            builderType === 'Image'
+          ) {
+            replay.execute(
+              context,
+              scaledCanvasSize,
+              transform,
+              viewRotation,
+              snapToPixel,
+              declutterTree,
+            );
+          } else {
+            zIndexContext.pushFunction((context) =>
+              replay.execute(
+                context,
+                scaledCanvasSize,
+                transform,
+                viewRotation,
+                snapToPixel,
+                declutterTree,
+              ),
+            );
+          }
           if (requireClip) {
             context.restore();
           }
           if (zIndexContext) {
             zIndexContext.offset();
-            const z = zs[i];
-            if (!this.deferredZIndexContexts_[z]) {
-              this.deferredZIndexContexts_[z] = [];
+            const index = zs[i] * maxBuilderTypes + j;
+            if (!this.deferredZIndexContexts_[index]) {
+              this.deferredZIndexContexts_[index] = [];
             }
-            this.deferredZIndexContexts_[z].push(zIndexContext);
+            this.deferredZIndexContexts_[index].push(zIndexContext);
           }
         }
       }
@@ -426,11 +441,13 @@ class ExecutorGroup {
 
   renderDeferred() {
     const deferredZIndexContexts = this.deferredZIndexContexts_;
-    for (const key in deferredZIndexContexts) {
-      deferredZIndexContexts[key].forEach((zIndexContext) => {
+    const zs = Object.keys(deferredZIndexContexts).map(Number).sort(ascending);
+    for (let i = 0, ii = zs.length; i < ii; ++i) {
+      deferredZIndexContexts[zs[i]].forEach((zIndexContext) => {
         zIndexContext.draw(this.renderedContext_); // FIXME Pass clip to replay for temporarily enabling clip
         zIndexContext.clear();
       });
+      deferredZIndexContexts[zs[i]].length = 0;
     }
   }
 }

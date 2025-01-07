@@ -1,9 +1,11 @@
 /**
  * @module ol/render/canvas/TextBuilder
  */
-import CanvasBuilder from './Builder.js';
-import CanvasInstruction from './Instruction.js';
 import {asColorLike} from '../../colorlike.js';
+import {intersects} from '../../extent.js';
+import {lineChunk} from '../../geom/flat/linechunk.js';
+import {matchingChunk} from '../../geom/flat/straightchunk.js';
+import {getUid} from '../../util.js';
 import {
   defaultFillStyle,
   defaultFont,
@@ -19,10 +21,8 @@ import {
   defaultTextBaseline,
   registerFont,
 } from '../canvas.js';
-import {getUid} from '../../util.js';
-import {intersects} from '../../extent.js';
-import {lineChunk} from '../../geom/flat/linechunk.js';
-import {matchingChunk} from '../../geom/flat/straightchunk.js';
+import CanvasBuilder from './Builder.js';
+import CanvasInstruction from './Instruction.js';
 /**
  * @const
  * @type {{left: 0, center: 0.5, right: 1, top: 0, middle: 0.5, hanging: 0.2, alphabetic: 0.8, ideographic: 0.8, bottom: 1}}
@@ -78,6 +78,12 @@ class CanvasTextBuilder extends CanvasBuilder {
      * @type {boolean|undefined}
      */
     this.textRotateWithView_ = undefined;
+
+    /**
+     * @private
+     * @type {boolean|undefined}
+     */
+    this.textKeepUpright_ = undefined;
 
     /**
      * @private
@@ -138,6 +144,7 @@ class CanvasTextBuilder extends CanvasBuilder {
     this.strokeKey_ = '';
 
     /**
+     * @private
      * @type {import('../../style/Style.js').DeclutterMode}
      */
     this.declutterMode_ = undefined;
@@ -152,6 +159,7 @@ class CanvasTextBuilder extends CanvasBuilder {
 
   /**
    * @return {import("../canvas.js").SerializableInstructions} the serializable instructions.
+   * @override
    */
   finish() {
     const instructions = super.finish();
@@ -165,6 +173,7 @@ class CanvasTextBuilder extends CanvasBuilder {
    * @param {import("../../geom/SimpleGeometry.js").default|import("../Feature.js").default} geometry Geometry.
    * @param {import("../../Feature.js").FeatureLike} feature Feature.
    * @param {number} [index] Render order index.
+   * @override
    */
   drawText(geometry, feature, index) {
     const fillState = this.textFillState_;
@@ -535,6 +544,7 @@ class CanvasTextBuilder extends CanvasBuilder {
       textKey,
       1,
       this.declutterMode_,
+      this.textKeepUpright_,
     ]);
     this.hitDetectionInstructions.push([
       CanvasInstruction.DRAW_CHARS,
@@ -552,12 +562,14 @@ class CanvasTextBuilder extends CanvasBuilder {
       textKey,
       1 / pixelRatio,
       this.declutterMode_,
+      this.textKeepUpright_,
     ]);
   }
 
   /**
    * @param {import("../../style/Text.js").default} textStyle Text style.
    * @param {Object} [sharedData] Shared data.
+   * @override
    */
   setTextStyle(textStyle, sharedData) {
     let textState, fillState, strokeState;
@@ -628,12 +640,15 @@ class CanvasTextBuilder extends CanvasBuilder {
       const textOffsetX = textStyle.getOffsetX();
       const textOffsetY = textStyle.getOffsetY();
       const textRotateWithView = textStyle.getRotateWithView();
+      const textKeepUpright = textStyle.getKeepUpright();
       const textRotation = textStyle.getRotation();
       this.text_ = textStyle.getText() || '';
       this.textOffsetX_ = textOffsetX === undefined ? 0 : textOffsetX;
       this.textOffsetY_ = textOffsetY === undefined ? 0 : textOffsetY;
       this.textRotateWithView_ =
         textRotateWithView === undefined ? false : textRotateWithView;
+      this.textKeepUpright_ =
+        textKeepUpright === undefined ? true : textKeepUpright;
       this.textRotation_ = textRotation === undefined ? 0 : textRotation;
 
       this.strokeKey_ = strokeState

@@ -1,27 +1,29 @@
-import CanvasVectorTileLayerRenderer from '../../../../../../src/ol/renderer/canvas/VectorTileLayer.js';
+import {spy as sinonSpy} from 'sinon';
 import Feature from '../../../../../../src/ol/Feature.js';
-import MVT from '../../../../../../src/ol/format/MVT.js';
 import Map from '../../../../../../src/ol/Map.js';
-import Point from '../../../../../../src/ol/geom/Point.js';
-import RenderFeature from '../../../../../../src/ol/render/Feature.js';
-import Style from '../../../../../../src/ol/style/Style.js';
-import Text from '../../../../../../src/ol/style/Text.js';
-import TileLayer from '../../../../../../src/ol/layer/Tile.js';
 import TileState from '../../../../../../src/ol/TileState.js';
 import VectorRenderTile from '../../../../../../src/ol/VectorRenderTile.js';
 import VectorTile from '../../../../../../src/ol/VectorTile.js';
-import VectorTileLayer from '../../../../../../src/ol/layer/VectorTile.js';
-import VectorTileSource from '../../../../../../src/ol/source/VectorTile.js';
 import View from '../../../../../../src/ol/View.js';
-import XYZ from '../../../../../../src/ol/source/XYZ.js';
-import {VOID} from '../../../../../../src/ol/functions.js';
-import {checkedFonts} from '../../../../../../src/ol/render/canvas.js';
-import {create} from '../../../../../../src/ol/transform.js';
-import {createFontStyle} from '../../../util.js';
-import {createXYZ} from '../../../../../../src/ol/tilegrid.js';
 import {getCenter} from '../../../../../../src/ol/extent.js';
+import MVT from '../../../../../../src/ol/format/MVT.js';
+import {VOID} from '../../../../../../src/ol/functions.js';
+import Point from '../../../../../../src/ol/geom/Point.js';
+import TileLayer from '../../../../../../src/ol/layer/Tile.js';
+import VectorTileLayer from '../../../../../../src/ol/layer/VectorTile.js';
 import {get as getProjection} from '../../../../../../src/ol/proj.js';
+import RenderFeature from '../../../../../../src/ol/render/Feature.js';
+import {checkedFonts} from '../../../../../../src/ol/render/canvas.js';
+import CanvasVectorTileLayerRenderer from '../../../../../../src/ol/renderer/canvas/VectorTileLayer.js';
+import VectorTileSource from '../../../../../../src/ol/source/VectorTile.js';
+import XYZ from '../../../../../../src/ol/source/XYZ.js';
+import Style from '../../../../../../src/ol/style/Style.js';
+import Text from '../../../../../../src/ol/style/Text.js';
+import {Circle, Fill} from '../../../../../../src/ol/style.js';
+import {createXYZ} from '../../../../../../src/ol/tilegrid.js';
+import {create} from '../../../../../../src/ol/transform.js';
 import {getUid} from '../../../../../../src/ol/util.js';
+import {createFontStyle} from '../../../util.js';
 
 describe('ol/renderer/canvas/VectorTileLayer', function () {
   describe('constructor', function () {
@@ -112,8 +114,7 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
     });
 
     afterEach(function () {
-      document.body.removeChild(target);
-      map.dispose();
+      disposeMap(map);
     });
 
     it('creates a new instance', function () {
@@ -130,7 +131,7 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
       });
       map.removeLayer(layer);
       map.addLayer(testLayer);
-      const spy = sinon.spy(
+      const spy = sinonSpy(
         CanvasVectorTileLayerRenderer.prototype,
         'renderTileImage_',
       );
@@ -140,11 +141,11 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
     });
 
     it('renders both replays and images for hybrid rendering', function () {
-      const spy1 = sinon.spy(
+      const spy1 = sinonSpy(
         CanvasVectorTileLayerRenderer.prototype,
         'getRenderTransform',
       );
-      const spy2 = sinon.spy(
+      const spy2 = sinonSpy(
         CanvasVectorTileLayerRenderer.prototype,
         'renderTileImage_',
       );
@@ -161,7 +162,7 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
           renderer: function () {},
         }),
       );
-      const spy = sinon.spy(
+      const spy = sinonSpy(
         CanvasVectorTileLayerRenderer.prototype,
         'getRenderTransform',
       );
@@ -171,10 +172,12 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
     });
 
     it('gives precedence to feature styles over layer styles', function () {
-      const spy = sinon.spy(layer.getRenderer(), 'renderFeature');
+      const spy = sinonSpy(layer.getRenderer(), 'renderFeature');
       map.renderSync();
-      expect(spy.getCall(0).args[2]).to.be(layer.getStyle());
-      expect(spy.getCall(1).args[2]).to.be(feature2.getStyle());
+      expect(spy.getCall(0).args[2]).to.be(layer.getStyleFunction()(feature1));
+      expect(spy.getCall(1).args[2]).to.be(
+        feature2.getStyleFunction()(feature2),
+      );
       spy.restore();
     });
 
@@ -232,9 +235,10 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
       map.addLayer(layer2);
 
       map.renderSync();
-      const tile = source.getTile(0, 0, 0, 1, getProjection('EPSG:3857'));
-      expect(Object.keys(tile.executorGroups)[0]).to.be(getUid(layer));
-      expect(Object.keys(tile.executorGroups)[1]).to.be(getUid(layer2));
+      const tile = layer.getRenderer().getTile(0, 0, 0, map.frameState_);
+      expect(Object.keys(tile.executorGroups)).to.have.length(1);
+      const tile2 = layer2.getRenderer().getTile(0, 0, 0, map.frameState_);
+      expect(Object.keys(tile2.executorGroups)).to.have.length(1);
     });
 
     it('reuses render container and adds and removes overlay context', function (done) {
@@ -371,18 +375,21 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
       sourceTile.getImage = function () {
         return document.createElement('canvas');
       };
-      const tile = new VectorRenderTile([0, 0, 0], 1, [0, 0, 0], function () {
-        return sourceTile;
-      });
+      const tile = new VectorRenderTile(
+        [0, 0, 0],
+        1,
+        [0, 0, 0],
+        function () {
+          return sourceTile;
+        },
+        () => {},
+      );
       tile.transition_ = 0;
       tile.setState(TileState.LOADED);
       layer.getSource().getTile = function () {
         return tile;
       };
       const renderer = new CanvasVectorTileLayerRenderer(layer);
-      renderer.isDrawableTile = function () {
-        return true;
-      };
       const proj = getProjection('EPSG:3857');
       const frameState = {
         layerStatesArray: [layer.getLayerState()],
@@ -390,6 +397,7 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
         extent: proj.getExtent(),
         pixelRatio: 1,
         pixelToCoordinateTransform: create(),
+        postRenderFunctions: [],
         time: Date.now(),
         viewHints: [],
         viewState: {
@@ -428,9 +436,15 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
         return document.createElement('canvas');
       };
       layer.getSource().getSourceTiles = () => [sourceTile];
-      const tile = new VectorRenderTile([0, 0, 0], 1, [0, 0, 0], function () {
-        return sourceTile;
-      });
+      const tile = new VectorRenderTile(
+        [0, 0, 0],
+        1,
+        [0, 0, 0],
+        function () {
+          return sourceTile;
+        },
+        () => {},
+      );
       tile.transition_ = 0;
       tile.replayState_[getUid(layer)] = [{dirty: true}];
       tile.setState(TileState.LOADED);
@@ -438,9 +452,6 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
         return tile;
       };
       const renderer = new CanvasVectorTileLayerRenderer(layer);
-      renderer.isDrawableTile = function () {
-        return true;
-      };
       const proj = getProjection('EPSG:3857');
       const frameState = {
         layerStatesArray: [layer.getLayerState()],
@@ -448,6 +459,7 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
         extent: proj.getExtent(),
         pixelRatio: 1,
         pixelToCoordinateTransform: create(),
+        postRenderFunctions: [],
         time: Date.now(),
         viewHints: [],
         viewState: {
@@ -486,7 +498,6 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
       renderer.renderFrame(frameState);
       expect(sequence).to.eql([
         'prerender',
-        'clearRect',
         'save',
         'drawImage',
         'restore',
@@ -513,9 +524,15 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
         return document.createElement('canvas');
       };
       layer.getSource().getSourceTiles = () => [sourceTile];
-      const tile = new VectorRenderTile([0, 0, 0], 1, [0, 0, 0], function () {
-        return sourceTile;
-      });
+      const tile = new VectorRenderTile(
+        [0, 0, 0],
+        1,
+        [0, 0, 0],
+        function () {
+          return sourceTile;
+        },
+        () => {},
+      );
       tile.transition_ = 0;
       tile.replayState_[getUid(layer)] = [{dirty: true}];
       tile.setState(TileState.LOADED);
@@ -523,9 +540,6 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
         return tile;
       };
       const renderer = new CanvasVectorTileLayerRenderer(layer);
-      renderer.isDrawableTile = function () {
-        return true;
-      };
       const proj = getProjection('EPSG:3857');
       const frameState = {
         layerStatesArray: [layer.getLayerState()],
@@ -533,6 +547,7 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
         extent: proj.getExtent(),
         pixelRatio: 1,
         pixelToCoordinateTransform: create(),
+        postRenderFunctions: [],
         time: Date.now(),
         viewHints: [],
         viewState: {
@@ -571,7 +586,6 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
       renderer.renderFrame(frameState);
       expect(sequence).to.eql([
         'prerender',
-        'clearRect',
         'save',
         'beginPath',
         'moveTo',
@@ -594,7 +608,7 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
   });
 
   describe('#forEachFeatureAtCoordinate', function () {
-    /** @type {VectorTileLayer] */ let layer;
+    /** @type {VectorTileLayer} */ let layer;
     /** @type {CanvasVectorTileLayerRenderer} */ let renderer;
     /** @type {VectorTileSource} */ let source;
     let executorGroup;
@@ -613,7 +627,7 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
         tileClass: TileClass,
         tileGrid: createXYZ(),
       });
-      source.sourceTileCache.set('0/0/0.mvt', sourceTile);
+      source.sourceTiles_['0/0/0.mvt'] = sourceTile;
       executorGroup = {};
       executorGroup.forEachFeatureAtCoordinate = function (
         coordinate,
@@ -643,7 +657,7 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
     });
 
     it('calls callback once per feature with a layer as 2nd arg', function () {
-      const spy = sinon.spy();
+      const spy = sinonSpy();
       const coordinate = [0, 0];
       const matches = [];
       const frameState = {
@@ -700,8 +714,7 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
       source.on('tileloadend', function () {
         setTimeout(function () {
           const features = map.getFeaturesAtPixel([96, 96]);
-          document.body.removeChild(target);
-          map.dispose();
+          disposeMap(map);
           expect(features).to.be.an(Array);
           expect(features).to.be.empty();
           done();
@@ -739,8 +752,7 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
       });
       map.once('rendercomplete', () => {
         setTimeout(() => {
-          map.setTarget(null);
-          document.body.removeChild(target);
+          disposeMap(map);
         }, 0);
         expect(() => {
           layer
@@ -755,6 +767,95 @@ describe('ol/renderer/canvas/VectorTileLayer', function () {
         }).to.not.throwException();
         done();
       });
+    });
+
+    it('detects symbols with `declutterMode: "none"`', (done) => {
+      const target = document.createElement('div');
+      target.style.width = '100px';
+      target.style.height = '100px';
+      document.body.appendChild(target);
+      const extent = [
+        1824704.739223726, 6141868.096770482, 1827150.7241288517,
+        6144314.081675608,
+      ];
+      const source = new VectorTileSource({
+        format: new MVT(),
+        url: 'spec/ol/data/14-8938-5680.vector.pbf',
+        minZoom: 14,
+        maxZoom: 14,
+      });
+      const layer = new VectorTileLayer({
+        declutter: true,
+        extent: extent,
+        source: source,
+        style: new Style({
+          image: new Circle({
+            declutterMode: 'none',
+            radius: 5,
+            fill: new Fill({color: 'red'}),
+          }),
+        }),
+      });
+      const map = new Map({
+        target: target,
+        layers: [layer],
+        view: new View({
+          center: getCenter(extent),
+          zoom: 14,
+        }),
+      });
+      map.once('rendercomplete', () => {
+        setTimeout(() => {
+          disposeMap(map);
+        }, 0);
+        const features = map.getFeaturesAtPixel([11, 75]);
+        expect(features).to.have.length(1);
+        done();
+      });
+    });
+  });
+
+  describe('mixed declutter settings', () => {
+    let map;
+    beforeEach((done) => {
+      const extent = [
+        1824704.739223726, 6141868.096770482, 1827150.7241288517,
+        6144314.081675608,
+      ];
+      const source = new VectorTileSource({
+        format: new MVT(),
+        url: 'spec/ol/data/14-8938-5680.vector.pbf',
+        minZoom: 14,
+        maxZoom: 14,
+      });
+      const layer1 = new VectorTileLayer({
+        declutter: true,
+        extent: extent,
+        source: source,
+      });
+      const layer2 = new VectorTileLayer({
+        declutter: true,
+        extent: extent,
+        source: source,
+      });
+      map = new Map({
+        target: createMapDiv(100, 100),
+        layers: [layer1, layer2],
+        view: new View({
+          center: getCenter(extent),
+          zoom: 14,
+        }),
+      });
+      map.once('rendercomplete', () => done());
+    });
+
+    afterEach(() => {
+      disposeMap(map);
+    });
+
+    it('works with a mix of decluttering enabled and disabled', () => {
+      map.getLayers().item(1).declutter_ = false;
+      expect(() => map.renderSync()).to.not.throwException();
     });
   });
 });

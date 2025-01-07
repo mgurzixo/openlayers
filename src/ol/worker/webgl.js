@@ -4,14 +4,14 @@
  */
 import {WebGLWorkerMessageType} from '../render/webgl/constants.js';
 import {
-  create as createTransform,
-  makeInverse as makeInverseTransform,
-} from '../transform.js';
-import {
   writeLineSegmentToBuffers,
   writePointFeatureToBuffers,
   writePolygonTrianglesToBuffers,
 } from '../render/webgl/utils.js';
+import {
+  create as createTransform,
+  makeInverse as makeInverseTransform,
+} from '../transform.js';
 
 /** @type {any} */
 const worker = self;
@@ -71,7 +71,7 @@ worker.onmessage = (event) => {
       const indices = [];
 
       const customAttrsCount = received.customAttributesSize;
-      const instructionsPerVertex = 2;
+      const instructionsPerVertex = 3;
 
       const renderInstructions = new Float32Array(received.renderInstructions);
       let currentInstructionsIndex = 0;
@@ -204,4 +204,4 @@ worker.onmessage = (event) => {
   }
 };
 
-export let create;
+/** @type {function(): Worker} */ export let create;

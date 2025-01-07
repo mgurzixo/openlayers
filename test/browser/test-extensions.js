@@ -1,4 +1,7 @@
+import Map from '../../src/ol/Map.js';
+import View from '../../src/ol/View.js';
 import {setLevel as setLogLevel} from '../../src/ol/console.js';
+import {defaults as defaultInteractions} from '../../src/ol/interaction.js';
 
 setLogLevel('error');
 
@@ -23,7 +26,7 @@ setLogLevel('error');
 
   /**
    * @param {string} path Relative path to file (e.g. 'spec/ol/foo.json').
-   * @param {function(Object)} next Function to call with response object on
+   * @param {function(Object): void} next Function to call with response object on
    *     success.  On failure, an error is thrown with the reason.
    */
   global.afterLoadJson = function (path, next) {
@@ -32,7 +35,7 @@ setLogLevel('error');
 
   /**
    * @param {string} path Relative path to file (e.g. 'spec/ol/foo.txt').
-   * @param {function(string)} next Function to call with response text on
+   * @param {function(string): void} next Function to call with response text on
    *     success.  On failure, an error is thrown with the reason.
    */
   global.afterLoadText = function (path, next) {
@@ -41,7 +44,7 @@ setLogLevel('error');
 
   /**
    * @param {string} path Relative path to file (e.g. 'spec/ol/foo.xml').
-   * @param {function(Document)} next Function to call with response xml on
+   * @param {function(Document): void} next Function to call with response xml on
    *     success.  On failure, an error is thrown with the reason.
    */
   global.afterLoadXml = function (path, next) {
@@ -374,13 +377,16 @@ setLogLevel('error');
     return target;
   };
 
-  global.disposeMap = function (map) {
-    const target = map.getTarget();
-    map.setTarget(null);
-    if (target && target.parentNode) {
-      target.parentNode.removeChild(target);
+  /**
+   * @param {import('../../src/ol/Map.js').default|undefined} map Map
+   * @param {HTMLElement} [target] Node in dom
+   */
+  global.disposeMap = function (map, target) {
+    target?.remove();
+    if (map) {
+      map.getTargetElement()?.remove();
+      map.dispose();
     }
-    map.dispose();
   };
 
   const features = {
@@ -416,4 +422,47 @@ setLogLevel('error');
       throw new Error('Found extra <div> elements in the body');
     }
   });
+
+  /**
+   * Defines and registers a custom HTML element `ol-map`.
+   *
+   * @param {Object} options Object holding different options used in
+   *  constructor of OLComponent. Currently 'interactionOpts' can be set as
+   *  child property.
+   */
+  global.defineCustomMapEl = function (options) {
+    // custom HTML element holding the OL map
+    class OLComponent extends HTMLElement {
+      constructor() {
+        super();
+        const shadow = this.attachShadow({mode: 'open'});
+
+        const style = document.createElement('style');
+        style.innerText = `
+          :host {
+            display: block;
+          }
+        `;
+        shadow.appendChild(style);
+
+        const target = document.createElement('div');
+        target.style.width = '100%';
+        target.style.height = '100%';
+        shadow.appendChild(target);
+
+        this.map = new Map({
+          target: target,
+          interactions: defaultInteractions(options.interactionOpts),
+          view: new View({
+            center: [0, 0],
+            resolutions: [1],
+            zoom: 8,
+          }),
+        });
+      }
+    }
+    if (customElements.get('ol-map') === undefined) {
+      customElements.define('ol-map', OLComponent);
+    }
+  };
 })(window);

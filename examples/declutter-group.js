@@ -1,10 +1,13 @@
-import {Feature, Map, View} from '../src/ol/index.js';
-import {Group as LayerGroup, Vector as VectorLayer} from '../src/ol/layer.js';
-import {Point} from '../src/ol/geom.js';
-import {Vector as VectorSource} from '../src/ol/source.js';
 import {apply} from 'ol-mapbox-style';
-import {fromExtent} from '../src/ol/geom/Polygon.js';
+import Feature from '../src/ol/Feature.js';
+import Map from '../src/ol/Map.js';
+import View from '../src/ol/View.js';
 import {getCenter} from '../src/ol/extent.js';
+import Point from '../src/ol/geom/Point.js';
+import {fromExtent} from '../src/ol/geom/Polygon.js';
+import LayerGroup from '../src/ol/layer/Group.js';
+import VectorLayer from '../src/ol/layer/Vector.js';
+import VectorSource from '../src/ol/source/Vector.js';
 
 const square = [-12e6, 3.5e6, -10e6, 5.5e6];
 const overlay = new VectorLayer({
@@ -38,7 +41,7 @@ const overlay = new VectorLayer({
 const layer = new LayerGroup();
 apply(
   layer,
-  'https://api.maptiler.com/maps/topo-v2/style.json?key=get_your_own_D6rA4zTHduk6KOKTXzGB',
+  'https://api.maptiler.com/maps/streets-v2/style.json?key=get_your_own_D6rA4zTHduk6KOKTXzGB',
 );
 
 const map = new Map({

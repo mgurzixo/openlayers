@@ -1,8 +1,8 @@
 /**
  * @module ol/color
  */
-import lchuv from 'color-space/lchuv.js';
 import parseRgba from 'color-rgba';
+import lchuv from 'color-space/lchuv.js';
 import rgb from 'color-space/rgb.js';
 import xyz from 'color-space/xyz.js';
 import {clamp} from './math.js';
@@ -15,6 +15,13 @@ import {clamp} from './math.js';
  * @typedef {Array<number>} Color
  * @api
  */
+
+/**
+ * Color to indicate that no color should be rendered. This is meant to be used for per-reference
+ * comparisons only.
+ * @type {Color}
+ */
+export const NO_COLOR = [NaN, NaN, NaN, 0];
 
 /**
  * Return the color as an rgba string.
@@ -87,6 +94,9 @@ export function lchaToRgba(color) {
  * @return {Color} Color.
  */
 export function fromString(s) {
+  if (s === 'none') {
+    return NO_COLOR;
+  }
   if (cache.hasOwnProperty(s)) {
     return cache[s];
   }
@@ -102,11 +112,11 @@ export function fromString(s) {
 
   const color = parseRgba(s);
   if (color.length !== 4) {
-    throw new Error('Failed to parse "' + s + '" as color');
+    throw new Error('failed to parse "' + s + '" as color');
   }
   for (const c of color) {
     if (isNaN(c)) {
-      throw new Error('Failed to parse "' + s + '" as color');
+      throw new Error('failed to parse "' + s + '" as color');
     }
   }
   normalize(color);
@@ -171,7 +181,7 @@ export function isStringColor(s) {
   try {
     fromString(s);
     return true;
-  } catch (_) {
+  } catch {
     return false;
   }
 }

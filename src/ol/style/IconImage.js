@@ -2,12 +2,12 @@
  * @module ol/style/IconImage
  */
 
-import EventTarget from '../events/Target.js';
-import EventType from '../events/EventType.js';
+import {decodeFallback} from '../Image.js';
 import ImageState from '../ImageState.js';
 import {asString} from '../color.js';
 import {createCanvasContext2D} from '../dom.js';
-import {decodeFallback} from '../Image.js';
+import EventType from '../events/EventType.js';
+import EventTarget from '../events/Target.js';
 import {shared as iconImageCache} from './IconImageCache.js';
 
 /**
@@ -112,7 +112,7 @@ class IconImage extends EventTarget {
       try {
         taintedTestContext.getImageData(0, 0, 1, 1);
         this.tainted_ = false;
-      } catch (e) {
+      } catch {
         taintedTestContext = null;
         this.tainted_ = true;
       }
@@ -224,7 +224,7 @@ class IconImage extends EventTarget {
       if (this.src_ !== undefined) {
         /** @type {HTMLImageElement} */ (this.image_).src = this.src_;
       }
-    } catch (e) {
+    } catch {
       this.handleImageError_();
     }
     if (this.image_ instanceof HTMLImageElement) {
@@ -251,11 +251,12 @@ class IconImage extends EventTarget {
     }
 
     const image = this.image_;
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.ceil(image.width * pixelRatio);
-    canvas.height = Math.ceil(image.height * pixelRatio);
+    const ctx = createCanvasContext2D(
+      Math.ceil(image.width * pixelRatio),
+      Math.ceil(image.height * pixelRatio),
+    );
+    const canvas = ctx.canvas;
 
-    const ctx = canvas.getContext('2d');
     ctx.scale(pixelRatio, pixelRatio);
     ctx.drawImage(image, 0, 0);
 
@@ -281,7 +282,7 @@ class IconImage extends EventTarget {
         ) {
           resolve();
         } else {
-          this.addEventListener(EventType.CHANGE, function onChange() {
+          const onChange = () => {
             if (
               this.imageState_ === ImageState.LOADED ||
               this.imageState_ === ImageState.ERROR
@@ -289,7 +290,8 @@ class IconImage extends EventTarget {
               this.removeEventListener(EventType.CHANGE, onChange);
               resolve();
             }
-          });
+          };
+          this.addEventListener(EventType.CHANGE, onChange);
         }
       });
     }
@@ -314,7 +316,7 @@ export function get(image, cacheKey, crossOrigin, imageState, color, pattern) {
   if (!iconImage) {
     iconImage = new IconImage(
       image,
-      image instanceof HTMLImageElement ? image.src || undefined : cacheKey,
+      image && 'src' in image ? image.src || undefined : cacheKey,
       crossOrigin,
       imageState,
       color,

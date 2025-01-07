@@ -1,17 +1,9 @@
+import proj4 from 'proj4';
 import Feature from '../../../../../src/ol/Feature.js';
 import GML2 from '../../../../../src/ol/format/GML2.js';
+import GML3 from '../../../../../src/ol/format/GML3.js';
 import GML32 from '../../../../../src/ol/format/GML32.js';
-import LineString from '../../../../../src/ol/geom/LineString.js';
-import MultiLineString from '../../../../../src/ol/geom/MultiLineString.js';
-import MultiPoint from '../../../../../src/ol/geom/MultiPoint.js';
-import MultiPolygon from '../../../../../src/ol/geom/MultiPolygon.js';
-import Polygon from '../../../../../src/ol/geom/Polygon.js';
 import WFS, {writeFilter} from '../../../../../src/ol/format/WFS.js';
-import {
-  addCommon,
-  clearAllProjections,
-  transform,
-} from '../../../../../src/ol/proj.js';
 import {
   and as andFilter,
   bbox as bboxFilter,
@@ -33,8 +25,18 @@ import {
   resourceId as resourceIdFilter,
   within as withinFilter,
 } from '../../../../../src/ol/format/filter.js';
-import {parse} from '../../../../../src/ol/xml.js';
+import LineString from '../../../../../src/ol/geom/LineString.js';
+import MultiLineString from '../../../../../src/ol/geom/MultiLineString.js';
+import MultiPoint from '../../../../../src/ol/geom/MultiPoint.js';
+import MultiPolygon from '../../../../../src/ol/geom/MultiPolygon.js';
+import Polygon from '../../../../../src/ol/geom/Polygon.js';
 import {register} from '../../../../../src/ol/proj/proj4.js';
+import {
+  addCommon,
+  clearAllProjections,
+  transform,
+} from '../../../../../src/ol/proj.js';
+import {parse} from '../../../../../src/ol/xml.js';
 
 describe('ol.format.WFS', function () {
   describe('featureType', function () {
@@ -1317,6 +1319,26 @@ describe('ol.format.WFS', function () {
         featurePrefix: 'topp',
       });
       expect(serialized).to.xmleql(parse(text));
+    });
+
+    describe('when writing out a Transaction request', function () {
+      const writeTransaction = (gmlFormat) => {
+        const wfs = new WFS({version: '2.0.0', gmlFormat});
+        const feature = new Feature({foo: null, bar: undefined});
+        wfs.writeTransaction([feature], [], [], {
+          featureNS: 'http://www.openplans.org/topp',
+          featureType: 'states',
+          featurePrefix: 'topp',
+        });
+      };
+
+      it('does not throw on null or undefined property values for GML2', () => {
+        expect(() => writeTransaction(new GML2())).to.not.throwException();
+      });
+
+      it('does not throw on null or undefined property values for GML3', () => {
+        expect(() => writeTransaction(new GML3())).to.not.throwException();
+      });
     });
 
     it('should use <Name> tag for property names', () => {

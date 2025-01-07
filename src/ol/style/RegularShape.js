@@ -3,7 +3,6 @@
  */
 
 import ImageState from '../ImageState.js';
-import ImageStyle from './Image.js';
 import {asArray} from '../color.js';
 import {asColorLike} from '../colorlike.js';
 import {createCanvasContext2D} from '../dom.js';
@@ -15,6 +14,9 @@ import {
   defaultMiterLimit,
   defaultStrokeStyle,
 } from '../render/canvas.js';
+import IconImage from './IconImage.js';
+import {shared as iconImageCache} from './IconImageCache.js';
+import ImageStyle from './Image.js';
 
 /**
  * Specify radius for regular polygons, or both radius and radius2 for stars.
@@ -72,12 +74,6 @@ class RegularShape extends ImageStyle {
 
     /**
      * @private
-     * @type {Object<number, HTMLCanvasElement>}
-     */
-    this.canvases_;
-
-    /**
-     * @private
      * @type {HTMLCanvasElement|null}
      */
     this.hitDetectionCanvas_ = null;
@@ -104,7 +100,7 @@ class RegularShape extends ImageStyle {
      * @protected
      * @type {number}
      */
-    this.radius_ = options.radius;
+    this.radius = options.radius;
 
     /**
      * @private
@@ -136,6 +132,9 @@ class RegularShape extends ImageStyle {
      */
     this.renderOptions_;
 
+    /**
+     * @private
+     */
     this.imageState_ =
       this.fill_ && this.fill_.loading()
         ? ImageState.LOADING
@@ -150,6 +149,7 @@ class RegularShape extends ImageStyle {
    * Clones the style.
    * @return {RegularShape} The cloned style.
    * @api
+   * @override
    */
   clone() {
     const scale = this.getScale();
@@ -175,6 +175,7 @@ class RegularShape extends ImageStyle {
    * symbolizer.
    * @return {Array<number>} Anchor.
    * @api
+   * @override
    */
   getAnchor() {
     const size = this.size_;
@@ -218,6 +219,7 @@ class RegularShape extends ImageStyle {
 
   /**
    * @return {HTMLCanvasElement} Image element.
+   * @override
    */
   getHitDetectionImage() {
     if (!this.hitDetectionCanvas_) {
@@ -233,19 +235,29 @@ class RegularShape extends ImageStyle {
    * @param {number} pixelRatio Pixel ratio.
    * @return {HTMLCanvasElement} Image or Canvas element.
    * @api
+   * @override
    */
   getImage(pixelRatio) {
-    let image = this.canvases_[pixelRatio];
+    const fillKey = this.fill_?.getKey();
+    const cacheKey =
+      `${pixelRatio},${this.angle_},${this.radius},${this.radius2_},${this.points_},${fillKey}` +
+      Object.values(this.renderOptions_).join(',');
+    let image = /** @type {HTMLCanvasElement} */ (
+      iconImageCache.get(cacheKey, null, null)?.getImage(1)
+    );
     if (!image) {
       const renderOptions = this.renderOptions_;
-      const context = createCanvasContext2D(
-        renderOptions.size * pixelRatio,
-        renderOptions.size * pixelRatio,
-      );
+      const size = Math.ceil(renderOptions.size * pixelRatio);
+      const context = createCanvasContext2D(size, size);
       this.draw_(renderOptions, context, pixelRatio);
 
       image = context.canvas;
-      this.canvases_[pixelRatio] = image;
+      iconImageCache.set(
+        cacheKey,
+        null,
+        null,
+        new IconImage(image, undefined, null, ImageState.LOADED, null),
+      );
     }
     return image;
   }
@@ -254,6 +266,7 @@ class RegularShape extends ImageStyle {
    * Get the image pixel ratio.
    * @param {number} pixelRatio Pixel ratio.
    * @return {number} Pixel ratio.
+   * @override
    */
   getPixelRatio(pixelRatio) {
     return pixelRatio;
@@ -261,6 +274,7 @@ class RegularShape extends ImageStyle {
 
   /**
    * @return {import("../size.js").Size} Image size.
+   * @override
    */
   getImageSize() {
     return this.size_;
@@ -268,6 +282,7 @@ class RegularShape extends ImageStyle {
 
   /**
    * @return {import("../ImageState.js").default} Image state.
+   * @override
    */
   getImageState() {
     return this.imageState_;
@@ -277,6 +292,7 @@ class RegularShape extends ImageStyle {
    * Get the origin of the symbolizer.
    * @return {Array<number>} Origin.
    * @api
+   * @override
    */
   getOrigin() {
     return this.origin_;
@@ -297,7 +313,7 @@ class RegularShape extends ImageStyle {
    * @api
    */
   getRadius() {
-    return this.radius_;
+    return this.radius;
   }
 
   /**
@@ -313,6 +329,7 @@ class RegularShape extends ImageStyle {
    * Get the size of the symbolizer (in pixels).
    * @return {import("../size.js").Size} Size.
    * @api
+   * @override
    */
   getSize() {
     return this.size_;
@@ -339,16 +356,19 @@ class RegularShape extends ImageStyle {
 
   /**
    * @param {function(import("../events/Event.js").default): void} listener Listener function.
+   * @override
    */
   listenImageChange(listener) {}
 
   /**
    * Load not yet loaded URI.
+   * @override
    */
   load() {}
 
   /**
    * @param {function(import("../events/Event.js").default): void} listener Listener function.
+   * @override
    */
   unlistenImageChange(listener) {}
 
@@ -390,7 +410,7 @@ class RegularShape extends ImageStyle {
     //      |α                                   .   .
     //       /                                         .   .
     //      ° center
-    let r1 = this.radius_;
+    let r1 = this.radius;
     let r2 = this.radius2_ === undefined ? r1 : this.radius2_;
     if (r1 < r2) {
       const tmp = r1;
@@ -466,7 +486,7 @@ class RegularShape extends ImageStyle {
     }
 
     const add = this.calculateLineJoinSize_(lineJoin, strokeWidth, miterLimit);
-    const maxRadius = Math.max(this.radius_, this.radius2_ || 0);
+    const maxRadius = Math.max(this.radius, this.radius2_ || 0);
     const size = Math.ceil(2 * maxRadius + add);
 
     return {
@@ -487,7 +507,6 @@ class RegularShape extends ImageStyle {
   render() {
     this.renderOptions_ = this.createRenderOptions();
     const size = this.renderOptions_.size;
-    this.canvases_ = {};
     this.hitDetectionCanvas_ = null;
     this.size_ = [size, size];
   }
@@ -563,7 +582,7 @@ class RegularShape extends ImageStyle {
    */
   createPath_(context) {
     let points = this.points_;
-    const radius = this.radius_;
+    const radius = this.radius;
     if (points === Infinity) {
       context.arc(0, 0, radius, 0, 2 * Math.PI);
     } else {
@@ -608,6 +627,9 @@ class RegularShape extends ImageStyle {
     }
   }
 
+  /**
+   * @override
+   */
   ready() {
     return this.fill_ ? this.fill_.ready() : Promise.resolve();
   }

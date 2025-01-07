@@ -2,13 +2,8 @@
  * @module ol/render/canvas/style
  */
 
-import Circle from '../../style/Circle.js';
-import Fill from '../../style/Fill.js';
-import Icon from '../../style/Icon.js';
-import RegularShape from '../../style/RegularShape.js';
-import Stroke from '../../style/Stroke.js';
-import Style from '../../style/Style.js';
-import Text from '../../style/Text.js';
+import {NO_COLOR} from '../../color.js';
+import {buildExpression, newEvaluationContext} from '../../expr/cpu.js';
 import {
   BooleanType,
   ColorType,
@@ -18,9 +13,15 @@ import {
   computeGeometryType,
   newParsingContext,
 } from '../../expr/expression.js';
-import {buildExpression, newEvaluationContext} from '../../expr/cpu.js';
 import {isEmpty} from '../../obj.js';
 import {toSize} from '../../size.js';
+import Circle from '../../style/Circle.js';
+import Fill from '../../style/Fill.js';
+import Icon from '../../style/Icon.js';
+import RegularShape from '../../style/RegularShape.js';
+import Stroke from '../../style/Stroke.js';
+import Style from '../../style/Style.js';
+import Text from '../../style/Text.js';
 
 /**
  * @fileoverview This module includes functions to build styles for the canvas renderer.  Building
@@ -308,6 +309,11 @@ function buildFill(flatStyle, prefix, context) {
   if (prefix + 'fill-pattern-src' in flatStyle) {
     evaluateColor = patternEvaluator(flatStyle, prefix + 'fill-', context);
   } else {
+    if (flatStyle[prefix + 'fill-color'] === 'none') {
+      // avoids hit detection
+      return (context) => null;
+    }
+
     evaluateColor = colorLikeEvaluator(
       flatStyle,
       prefix + 'fill-color',
@@ -321,7 +327,7 @@ function buildFill(flatStyle, prefix, context) {
   const fill = new Fill();
   return function (context) {
     const color = evaluateColor(context);
-    if (color === 'none') {
+    if (color === NO_COLOR) {
       return null;
     }
     fill.setColor(color);
@@ -390,7 +396,7 @@ function buildStroke(flatStyle, prefix, context) {
   return function (context) {
     if (evaluateColor) {
       const color = evaluateColor(context);
-      if (color === 'none') {
+      if (color === NO_COLOR) {
         return null;
       }
       stroke.setColor(color);
@@ -535,6 +541,12 @@ function buildText(flatStyle, context) {
     context,
   );
 
+  const evaluateKeepUpright = booleanEvaluator(
+    flatStyle,
+    prefix + 'keep-upright',
+    context,
+  );
+
   const evaluatePadding = numberArrayEvaluator(
     flatStyle,
     prefix + 'padding',
@@ -654,6 +666,10 @@ function buildText(flatStyle, context) {
 
     if (evaluatePadding) {
       text.setPadding(evaluatePadding(context));
+    }
+
+    if (evaluateKeepUpright) {
+      text.setKeepUpright(evaluateKeepUpright(context));
     }
 
     return text;
@@ -1029,11 +1045,7 @@ function colorLikeEvaluator(flatStyle, name, context) {
   if (!(name in flatStyle)) {
     return null;
   }
-  const evaluator = buildExpression(
-    flatStyle[name],
-    ColorType | StringType,
-    context,
-  );
+  const evaluator = buildExpression(flatStyle[name], ColorType, context);
   return function (context) {
     return requireColorLike(evaluator(context), name);
   };

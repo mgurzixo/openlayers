@@ -1,11 +1,11 @@
 /**
  * @module ol/interaction/Link
  */
-import EventType from '../events/EventType.js';
-import Interaction from './Interaction.js';
 import MapEventType from '../MapEventType.js';
+import EventType from '../events/EventType.js';
 import {listen, unlistenByKey} from '../events.js';
 import {toFixed} from '../math.js';
+import Interaction from './Interaction.js';
 
 /**
  * @param {number} number A number.
@@ -141,6 +141,9 @@ class Link extends Interaction {
      */
     this.initial_ = true;
 
+    /**
+     * @private
+     */
     this.updateState_ = this.updateState_.bind(this);
 
     /**
@@ -207,6 +210,7 @@ class Link extends Interaction {
 
   /**
    * @param {import("../Map.js").default|null} map Map.
+   * @override
    */
   setMap(map) {
     const oldMap = this.getMap();

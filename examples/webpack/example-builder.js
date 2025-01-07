@@ -1,19 +1,19 @@
 import assert from 'assert';
-import frontMatter from 'front-matter';
 import fs from 'fs';
+import path, {dirname} from 'path';
+import {fileURLToPath} from 'url';
+import frontMatter from 'front-matter';
 import fse from 'fs-extra';
 import handlebars from 'handlebars';
-import path, {dirname} from 'path';
-import sources from 'webpack-sources';
-import {fileURLToPath} from 'url';
 import {marked} from 'marked';
+import sources from 'webpack-sources';
 
 const RawSource = sources.RawSource;
 const baseDir = dirname(fileURLToPath(import.meta.url));
 
 const isCssRegEx = /\.css(\?.*)?$/;
 const isJsRegEx = /\.js(\?.*)?$/;
-const importRegEx = /\s?import .*? from '([^']+)'/g;
+const importRegEx = /\s?import (?:.*? from )?'([^']+)'/g;
 const isTemplateJs = /\/(?:bootstrap(?:\.bundle)?)(?:\.min)?\.js(?:\?.*)?$/;
 const isTemplateCss =
   /\/(?:bootstrap|fontawesome-free@[\d.]+\/css\/(?:fontawesome|brands|solid))(?:\.min)?\.css(?:\?.*)?$/;
@@ -400,7 +400,7 @@ export default class ExampleBuilder {
       assets[cssName] = await fse.readFile(cssPath, readOptions);
       data.css.local.push(cssName);
       data.css.source = this.ensureNewLineAtEnd(assets[cssName]);
-    } catch (err) {
+    } catch {
       // pass, no css for this example
     }
 

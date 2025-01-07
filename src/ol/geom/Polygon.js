@@ -1,22 +1,22 @@
 /**
  * @module ol/geom/Polygon
  */
+import {extend} from '../array.js';
+import {closestSquaredDistanceXY, getCenter, isEmpty} from '../extent.js';
+import {modulo} from '../math.js';
+import {offset as sphereOffset} from '../sphere.js';
 import LinearRing from './LinearRing.js';
 import Point from './Point.js';
 import SimpleGeometry from './SimpleGeometry.js';
+import {linearRings as linearRingsArea} from './flat/area.js';
 import {arrayMaxSquaredDelta, assignClosestArrayPoint} from './flat/closest.js';
-import {closestSquaredDistanceXY, getCenter, isEmpty} from '../extent.js';
+import {linearRingsContainsXY} from './flat/contains.js';
 import {deflateCoordinatesArray} from './flat/deflate.js';
-import {extend} from '../array.js';
-import {getInteriorPointOfArray} from './flat/interiorpoint.js';
 import {inflateCoordinatesArray} from './flat/inflate.js';
+import {getInteriorPointOfArray} from './flat/interiorpoint.js';
 import {intersectsLinearRingArray} from './flat/intersectsextent.js';
 import {linearRingsAreOriented, orientLinearRings} from './flat/orient.js';
-import {linearRings as linearRingsArea} from './flat/area.js';
-import {linearRingsContainsXY} from './flat/contains.js';
-import {modulo} from '../math.js';
 import {quantizeArray} from './flat/simplify.js';
-import {offset as sphereOffset} from '../sphere.js';
 
 /**
  * @classdesc
@@ -116,6 +116,7 @@ class Polygon extends SimpleGeometry {
    * Make a complete copy of the geometry.
    * @return {!Polygon} Clone.
    * @api
+   * @override
    */
   clone() {
     const polygon = new Polygon(
@@ -133,6 +134,7 @@ class Polygon extends SimpleGeometry {
    * @param {import("../coordinate.js").Coordinate} closestPoint Closest point.
    * @param {number} minSquaredDistance Minimum squared distance.
    * @return {number} Minimum squared distance.
+   * @override
    */
   closestPointXY(x, y, closestPoint, minSquaredDistance) {
     if (minSquaredDistance < closestSquaredDistanceXY(this.getExtent(), x, y)) {
@@ -168,6 +170,7 @@ class Polygon extends SimpleGeometry {
    * @param {number} x X.
    * @param {number} y Y.
    * @return {boolean} Contains (x, y).
+   * @override
    */
   containsXY(x, y) {
     return linearRingsContainsXY(
@@ -206,6 +209,7 @@ class Polygon extends SimpleGeometry {
    *     constructed.
    * @return {Array<Array<import("../coordinate.js").Coordinate>>} Coordinates.
    * @api
+   * @override
    */
   getCoordinates(right) {
     let flatCoordinates;
@@ -340,6 +344,7 @@ class Polygon extends SimpleGeometry {
    * @param {number} squaredTolerance Squared tolerance.
    * @return {Polygon} Simplified Polygon.
    * @protected
+   * @override
    */
   getSimplifiedGeometryInternal(squaredTolerance) {
     /** @type {Array<number>} */
@@ -363,6 +368,7 @@ class Polygon extends SimpleGeometry {
    * Get the type of this geometry.
    * @return {import("./Geometry.js").Type} Geometry type.
    * @api
+   * @override
    */
   getType() {
     return 'Polygon';
@@ -373,6 +379,7 @@ class Polygon extends SimpleGeometry {
    * @param {import("../extent.js").Extent} extent Extent.
    * @return {boolean} `true` if the geometry and the extent intersect.
    * @api
+   * @override
    */
   intersectsExtent(extent) {
     return intersectsLinearRingArray(
@@ -389,6 +396,7 @@ class Polygon extends SimpleGeometry {
    * @param {!Array<Array<import("../coordinate.js").Coordinate>>} coordinates Coordinates.
    * @param {import("./Geometry.js").GeometryLayout} [layout] Layout.
    * @api
+   * @override
    */
   setCoordinates(coordinates, layout) {
     this.setLayout(layout, coordinates, 2);

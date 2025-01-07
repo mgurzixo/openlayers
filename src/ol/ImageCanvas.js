@@ -1,8 +1,8 @@
 /**
  * @module ol/ImageCanvas
  */
-import ImageState from './ImageState.js';
 import ImageWrapper from './Image.js';
+import ImageState from './ImageState.js';
 
 /**
  * A function that is called to trigger asynchronous canvas drawing.  It is
@@ -72,6 +72,7 @@ class ImageCanvas extends ImageWrapper {
 
   /**
    * Load not yet loaded URI.
+   * @override
    */
   load() {
     if (this.state == ImageState.IDLE) {
@@ -83,6 +84,7 @@ class ImageCanvas extends ImageWrapper {
 
   /**
    * @return {HTMLCanvasElement} Canvas element.
+   * @override
    */
   getImage() {
     return this.canvas_;

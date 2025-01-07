@@ -1,11 +1,8 @@
 /**
  * @module ol/format/WFS
  */
-import GML2 from './GML2.js';
-import GML3 from './GML3.js';
-import GML32 from './GML32.js';
-import GMLBase, {GMLNS} from './GMLBase.js';
-import XMLFeature from './XMLFeature.js';
+import {assert} from '../asserts.js';
+import {get as getProjection} from '../proj.js';
 import {
   XML_SCHEMA_INSTANCE_URI,
   createElementNS,
@@ -19,9 +16,12 @@ import {
   pushParseAndPop,
   pushSerializeAndPop,
 } from '../xml.js';
+import GML2 from './GML2.js';
+import GML3 from './GML3.js';
+import GML32 from './GML32.js';
+import GMLBase, {GMLNS} from './GMLBase.js';
+import XMLFeature from './XMLFeature.js';
 import {and as andFilterFn, bbox as bboxFilterFn} from './filter.js';
-import {assert} from '../asserts.js';
-import {get as getProjection} from '../proj.js';
 import {
   readNonNegativeIntegerString,
   readPositiveInteger,
@@ -331,6 +331,7 @@ class WFS extends XMLFeature {
    * @param {Element} node Node.
    * @param {import("./Feature.js").ReadOptions} [options] Options.
    * @return {Array<import("../Feature.js").default>} Features.
+   * @override
    */
   readFeaturesFromNode(node, options) {
     /** @type {import("../xml.js").NodeStackItem} */
@@ -644,6 +645,7 @@ class WFS extends XMLFeature {
   /**
    * @param {Document} doc Document.
    * @return {import("../proj/Projection.js").default} Projection.
+   * @override
    */
   readProjectionFromDocument(doc) {
     for (let n = doc.firstChild; n; n = n.nextSibling) {
@@ -657,6 +659,7 @@ class WFS extends XMLFeature {
   /**
    * @param {Element} node Node.
    * @return {import("../proj/Projection.js").default} Projection.
+   * @override
    */
   readProjectionFromNode(node) {
     if (node.firstElementChild && node.firstElementChild.firstElementChild) {

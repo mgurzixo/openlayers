@@ -1,10 +1,10 @@
 /**
  * @module ol/format/WMSGetFeatureInfo
  */
-import GML2 from './GML2.js';
-import XMLFeature from './XMLFeature.js';
 import {extend} from '../array.js';
 import {makeArrayPusher, makeStructureNS, pushParseAndPop} from '../xml.js';
+import GML2 from './GML2.js';
+import XMLFeature from './XMLFeature.js';
 
 /**
  * @typedef {Object} Options
@@ -152,6 +152,7 @@ class WMSGetFeatureInfo extends XMLFeature {
    * @param {Element} node Node.
    * @param {import("./Feature.js").ReadOptions} [options] Options.
    * @return {Array<import("../Feature.js").default>} Features.
+   * @override
    */
   readFeaturesFromNode(node, options) {
     const internalOptions = {};

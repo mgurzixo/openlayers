@@ -1,24 +1,22 @@
 /**
  * @module ol/expr/gpu
  */
+import {asArray} from '../color.js';
+import {Uniforms} from '../renderer/webgl/TileLayer.js';
+import {toSize} from '../size.js';
 import PaletteTexture from '../webgl/PaletteTexture.js';
 import {
   BooleanType,
   CallExpression,
   ColorType,
-  NoneType,
   NumberArrayType,
   NumberType,
   Ops,
+  SizeType,
   StringType,
-  computeGeometryType,
-  isType,
-  overlapsType,
   parse,
   typeName,
 } from './expression.js';
-import {Uniforms} from '../renderer/webgl/TileLayer.js';
-import {asArray} from '../color.js';
 
 /**
  * @param {string} operator Operator
@@ -63,13 +61,17 @@ export function arrayToGlsl(array) {
 export function colorToGlsl(color) {
   const array = asArray(color);
   const alpha = array.length > 3 ? array[3] : 1;
-  // all components are premultiplied with alpha value
-  return arrayToGlsl([
-    (array[0] / 255) * alpha,
-    (array[1] / 255) * alpha,
-    (array[2] / 255) * alpha,
-    alpha,
-  ]);
+  return arrayToGlsl([array[0] / 255, array[1] / 255, array[2] / 255, alpha]);
+}
+
+/**
+ * Normalizes and converts a number or array toa `vec2` array compatible with GLSL.
+ * @param {number|import('../size.js').Size} size Size.
+ * @return {string} The color expressed in the `vec4(1.0, 1.0, 1.0, 1.0)` form.
+ */
+export function sizeToGlsl(size) {
+  const array = toSize(size);
+  return arrayToGlsl(array);
 }
 
 /** @type {Object<string, number>} */
@@ -124,14 +126,12 @@ export function uniformNameForVariable(variableName) {
  * @typedef {Object} CompilationContextProperty
  * @property {string} name Name
  * @property {number} type Resolved property type
- * @property {function(import("../Feature.js").FeatureLike): *} [evaluator] Function used for evaluating the value;
  */
 
 /**
  * @typedef {Object} CompilationContextVariable
  * @property {string} name Name
  * @property {number} type Resolved variable type
- * @property {function(Object): *} [evaluator] Function used for evaluating the value; argument is the style variables object
  */
 
 /**
@@ -142,7 +142,8 @@ export function uniformNameForVariable(variableName) {
  * @property {Object<string, string>} functions Lookup of functions used by the style.
  * @property {number} [bandCount] Number of bands per pixel.
  * @property {Array<PaletteTexture>} [paletteTextures] List of palettes used by the style.
- * @property {import("../style/webgl.js").WebGLStyle} style Literal style.
+ * @property {boolean} featureId Whether the feature ID is used in the expression
+ * @property {boolean} geometryType Whether the geometry type is used in the expression
  */
 
 /**
@@ -155,13 +156,17 @@ export function newCompilationContext() {
     properties: {},
     functions: {},
     bandCount: 0,
-    style: {},
+    featureId: false,
+    geometryType: false,
   };
 }
 
 const GET_BAND_VALUE_FUNC = 'getBandValue';
 
 export const PALETTE_TEXTURE_ARRAY = 'u_paletteTextures';
+
+export const FEATURE_ID_PROPERTY_NAME = 'featureId';
+export const GEOMETRY_TYPE_PROPERTY_NAME = 'geometryType';
 
 /**
  * @typedef {string} CompiledExpression
@@ -185,17 +190,7 @@ export function buildExpression(
   parsingContext,
   compilationContext,
 ) {
-  const expression = parse(encoded, parsingContext, type);
-  if (isType(expression.type, NoneType)) {
-    throw new Error(`No matching type was found`);
-  }
-  if (!overlapsType(type, expression.type)) {
-    const expected = typeName(type);
-    const actual = typeName(expression.type);
-    throw new Error(
-      `Expected expression to be of type ${expected}, got ${actual}`,
-    );
-  }
+  const expression = parse(encoded, type, parsingContext);
   return compile(expression, type, compilationContext);
 }
 
@@ -231,21 +226,17 @@ const compilers = {
     const prefix = context.inFragmentShader ? 'v_prop_' : 'a_prop_';
     return prefix + propName;
   },
-  [Ops.GeometryType]: (context, expression, type) => {
-    const propName = 'geometryType';
-    const isExisting = propName in context.properties;
-    if (!isExisting) {
-      context.properties[propName] = {
-        name: propName,
-        type: StringType,
-        evaluator: (feature) => {
-          return computeGeometryType(feature.getGeometry());
-        },
-      };
-    }
-    const prefix = context.inFragmentShader ? 'v_prop_' : 'a_prop_';
-    return prefix + propName;
+  [Ops.Id]: (context) => {
+    context.featureId = true;
+    const prefix = context.inFragmentShader ? 'v_' : 'a_';
+    return prefix + FEATURE_ID_PROPERTY_NAME;
   },
+  [Ops.GeometryType]: (context) => {
+    context.geometryType = true;
+    const prefix = context.inFragmentShader ? 'v_' : 'a_';
+    return prefix + GEOMETRY_TYPE_PROPERTY_NAME;
+  },
+  [Ops.LineMetric]: () => 'currentLineMetric', // this variable is assumed to always be present in shaders, default is 0.
   [Ops.Var]: (context, expression) => {
     const firstArg = /** @type {LiteralExpression} */ (expression.args[0]);
     const varName = /** @type {string} */ (firstArg.value);
@@ -372,14 +363,14 @@ ${tests.join('\n')}
     }
     if (compiledArgs.length === 2) {
       //grayscale with alpha
-      return `(${compiledArgs[1]} * vec4(vec3(${compiledArgs[0]} / 255.0), 1.0))`;
+      return `vec4(vec3(${compiledArgs[0]} / 255.0), ${compiledArgs[1]})`;
     }
     const rgb = compiledArgs.slice(0, 3).map((color) => `${color} / 255.0`);
     if (compiledArgs.length === 3) {
       return `vec4(${rgb.join(', ')}, 1.0)`;
     }
     const alpha = compiledArgs[3];
-    return `(${alpha} * vec4(${rgb.join(', ')}, 1.0))`;
+    return `vec4(${rgb.join(', ')}, ${alpha})`;
   }),
   [Ops.Band]: createCompiler(([band, xOffset, yOffset], context) => {
     if (!(GET_BAND_VALUE_FUNC in context.functions)) {
@@ -483,6 +474,12 @@ function compile(expression, returnType, context) {
 
   if ((expression.type & NumberArrayType) > 0) {
     return arrayToGlsl(/** @type {Array<number>} */ (expression.value));
+  }
+
+  if ((expression.type & SizeType) > 0) {
+    return sizeToGlsl(
+      /** @type {number|import('../size.js').Size} */ (expression.value),
+    );
   }
 
   throw new Error(

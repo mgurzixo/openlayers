@@ -1,13 +1,15 @@
 /**
  * @module ol/layer/Heatmap
  */
-import BaseVector from './BaseVector.js';
+import {createCanvasContext2D} from '../dom.js';
+import {clamp} from '../math.js';
 import WebGLPointsLayerRenderer from '../renderer/webgl/PointsLayer.js';
 import {ShaderBuilder} from '../webgl/ShaderBuilder.js';
-import {clamp} from '../math.js';
-import {createCanvasContext2D} from '../dom.js';
+import BaseVector from './BaseVector.js';
 
 /**
+ * @template {import("../Feature.js").FeatureLike} [FeatureType=import("../Feature.js").default]
+ * @template {import("../source/Vector.js").default<FeatureType>} [VectorSourceType=import("../source/Vector.js").default<FeatureType>]
  * @typedef {Object} Options
  * @property {string} [className='ol-layer'] A CSS class name to set to the layer element.
  * @property {number} [opacity=1] Opacity (0, 1).
@@ -33,7 +35,7 @@ import {createCanvasContext2D} from '../dom.js';
  * @property {string|function(import("../Feature.js").default):number} [weight='weight'] The feature
  * attribute to use for the weight or a function that returns a weight from a feature. Weight values
  * should range from 0 to 1 (and values outside will be clamped to that range).
- * @property {import("../source/Vector.js").default} [source] Point source.
+ * @property {VectorSourceType} [source] Point source.
  * @property {Object<string, *>} [properties] Arbitrary observable properties. Can be accessed with `#get()` and `#set()`.
  */
 
@@ -60,13 +62,16 @@ const DEFAULT_GRADIENT = ['#00f', '#0ff', '#0f0', '#ff0', '#f00'];
  * property on the layer object; for example, setting `title: 'My Title'` in the
  * options means that `title` is observable, and has get/set accessors.
  *
- * @fires import("../render/Event.js").RenderEvent
- * @extends {BaseVector<import("../source/Vector.js").default, WebGLPointsLayerRenderer>}
+ * @fires import("../render/Event.js").RenderEvent#prerender
+ * @fires import("../render/Event.js").RenderEvent#postrender
+ * @template {import("../Feature.js").FeatureLike} [FeatureType=import("../Feature.js").default]
+ * @template {import("../source/Vector.js").default<FeatureType>} [VectorSourceType=import("../source/Vector.js").default<FeatureType>]
+ * @extends {BaseVector<FeatureType, VectorSourceType, WebGLPointsLayerRenderer>}
  * @api
  */
 class Heatmap extends BaseVector {
   /**
-   * @param {Options} [options] Options.
+   * @param {Options<FeatureType, VectorSourceType>} [options] Options.
    */
   constructor(options) {
     options = options ? options : {};
@@ -94,13 +99,18 @@ class Heatmap extends BaseVector {
     this.setRadius(options.radius !== undefined ? options.radius : 8);
 
     const weight = options.weight ? options.weight : 'weight';
-    if (typeof weight === 'string') {
-      this.weightFunction_ = function (feature) {
-        return feature.get(weight);
-      };
-    } else {
-      this.weightFunction_ = weight;
-    }
+
+    /**
+     * @private
+     */
+    this.weightFunction_ =
+      typeof weight === 'string'
+        ? /**
+           * @param {import('../Feature.js').default} feature Feature
+           * @return {any} weight
+           */
+          (feature) => feature.get(weight)
+        : weight;
 
     // For performance reasons, don't sort the features before rendering.
     // The render order is not relevant for a heatmap representation.
@@ -174,15 +184,18 @@ class Heatmap extends BaseVector {
     this.set(Property.RADIUS, radius);
   }
 
+  /**
+   * @override
+   */
   createRenderer() {
     const builder = new ShaderBuilder()
-      .addAttribute('float a_prop_weight')
-      .addVarying('v_prop_weight', 'float', 'a_prop_weight')
+      .addAttribute('float a_weight')
+      .addVarying('v_weight', 'float', 'a_weight')
       .addUniform('float u_size')
       .addUniform('float u_blurSlope')
       .setSymbolSizeExpression('vec2(u_size)')
       .setSymbolColorExpression(
-        'vec4(smoothstep(0., 1., (1. - length(coordsPx * 2. / v_quadSizePx)) * u_blurSlope) * v_prop_weight)',
+        'vec4(smoothstep(0., 1., (1. - length(coordsPx * 2. / v_quadSizePx)) * u_blurSlope) * v_weight)',
       );
 
     return new WebGLPointsLayerRenderer(this, {
@@ -235,6 +248,9 @@ class Heatmap extends BaseVector {
     });
   }
 
+  /**
+   * @override
+   */
   renderDeclutter() {}
 }
 

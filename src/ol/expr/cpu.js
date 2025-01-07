@@ -3,14 +3,6 @@
  */
 
 import {
-  ColorType,
-  LiteralExpression,
-  Ops,
-  overlapsType,
-  parse,
-  typeName,
-} from './expression.js';
-import {
   fromString,
   lchaToRgba,
   normalize,
@@ -18,6 +10,7 @@ import {
   toString,
   withAlpha,
 } from '../color.js';
+import {ColorType, LiteralExpression, Ops, parse} from './expression.js';
 
 /**
  * @fileoverview This module includes functions to build expressions for evaluation on the CPU.
@@ -92,14 +85,7 @@ export function newEvaluationContext() {
  * @return {ExpressionEvaluator} The expression evaluator.
  */
 export function buildExpression(encoded, type, context) {
-  const expression = parse(encoded, context);
-  if (!overlapsType(type, expression.type)) {
-    const expected = typeName(type);
-    const actual = typeName(expression.type);
-    throw new Error(
-      `Expected expression to be of type ${expected}, got ${actual}`,
-    );
-  }
+  const expression = parse(encoded, type, context);
   return compileExpression(expression, context);
 }
 
@@ -129,7 +115,8 @@ function compileExpression(expression, context) {
       return compileAssertionExpression(expression, context);
     }
     case Ops.Get:
-    case Ops.Var: {
+    case Ops.Var:
+    case Ops.Has: {
       return compileAccessorExpression(expression, context);
     }
     case Ops.Id: {
@@ -256,10 +243,37 @@ function compileAccessorExpression(expression, context) {
   const name = /** @type {string} */ (nameExpression.value);
   switch (expression.operator) {
     case Ops.Get: {
-      return (context) => context.properties[name];
+      return (context) => {
+        const args = expression.args;
+        let value = context.properties[name];
+        for (let i = 1, ii = args.length; i < ii; ++i) {
+          const keyExpression = /** @type {LiteralExpression} */ (args[i]);
+          const key = /** @type {string|number} */ (keyExpression.value);
+          value = value[key];
+        }
+        return value;
+      };
     }
     case Ops.Var: {
       return (context) => context.variables[name];
+    }
+    case Ops.Has: {
+      return (context) => {
+        const args = expression.args;
+        if (!(name in context.properties)) {
+          return false;
+        }
+        let value = context.properties[name];
+        for (let i = 1, ii = args.length; i < ii; ++i) {
+          const keyExpression = /** @type {LiteralExpression} */ (args[i]);
+          const key = /** @type {string|number} */ (keyExpression.value);
+          if (!value || !Object.hasOwn(value, key)) {
+            return false;
+          }
+          value = value[key];
+        }
+        return true;
+      };
     }
     default: {
       throw new Error(`Unsupported accessor operator ${expression.operator}`);
