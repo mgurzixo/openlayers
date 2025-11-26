@@ -175,7 +175,7 @@ class CanvasLayerRenderer extends LayerRenderer {
     ) {
       const canvas = target.firstElementChild;
       if (canvas instanceof HTMLCanvasElement) {
-        context = canvas.getContext('2d');
+        context = canvas.getContext('2d', {willReadFrequently: true});
       }
     }
     if (context && context.canvas.style.transform === transform) {
