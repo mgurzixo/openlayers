@@ -35,8 +35,12 @@ class ImageTile extends Tile {
     this.key = src;
 
     /**
+     * Tiles backed by custom caches may inject an ImageBitmap directly to skip
+     * creating intermediate canvas/image elements. Accept it alongside the
+     * traditional DOM sources so `drawImage(tile.getImage(), …)` keeps working.
+     *
      * @private
-     * @type {HTMLImageElement|HTMLCanvasElement}
+     * @type {HTMLImageElement|HTMLCanvasElement|ImageBitmap}
      */
     this.image_ = new Image();
     if (crossOrigin !== null) {
@@ -57,8 +61,8 @@ class ImageTile extends Tile {
   }
 
   /**
-   * Get the HTML image element for this tile (may be a Canvas, Image, or Video).
-   * @return {HTMLCanvasElement|HTMLImageElement|HTMLVideoElement} Image.
+  * Get the image source for this tile (Canvas, Image, Video, or ImageBitmap).
+  * @return {HTMLCanvasElement|HTMLImageElement|HTMLVideoElement|ImageBitmap} Image.
    * @api
    */
   getImage() {
@@ -66,8 +70,11 @@ class ImageTile extends Tile {
   }
 
   /**
-   * Sets an HTML image element for this tile (may be a Canvas or preloaded Image).
-   * @param {HTMLCanvasElement|HTMLImageElement} element Element.
+  * Sets a rendered image source for this tile.
+  * Accepting ImageBitmap allows external tile caches to provide decoded frames
+  * without reloading the network resource.
+  *
+  * @param {HTMLCanvasElement|HTMLImageElement|ImageBitmap} element Element.
    */
   setImage(element) {
     this.image_ = element;
