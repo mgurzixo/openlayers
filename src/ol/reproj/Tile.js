@@ -1,21 +1,21 @@
 /**
  * @module ol/reproj/Tile
  */
-import {ERROR_THRESHOLD} from './common.js';
 
-import EventType from '../events/EventType.js';
 import Tile from '../Tile.js';
 import TileState from '../TileState.js';
-import Triangulation from './Triangulation.js';
+import {releaseCanvas} from '../dom.js';
+import EventType from '../events/EventType.js';
+import {listen, unlistenByKey} from '../events.js';
+import {getArea, getIntersection, getWidth, wrapAndSliceX} from '../extent.js';
+import {clamp} from '../math.js';
 import {
   calculateSourceExtentResolution,
   canvasPool,
   render as renderReprojected,
 } from '../reproj.js';
-import {clamp} from '../math.js';
-import {getArea, getIntersection, getWidth, wrapAndSliceX} from '../extent.js';
-import {listen, unlistenByKey} from '../events.js';
-import {releaseCanvas} from '../dom.js';
+import Triangulation from './Triangulation.js';
+import {ERROR_THRESHOLD} from './common.js';
 
 /**
  * @typedef {function(number, number, number, number) : (import("../ImageTile.js").default)} FunctionType
@@ -331,6 +331,7 @@ class ReprojTile extends Tile {
 
   /**
    * Load not yet loaded URI.
+   * @override
    */
   load() {
     if (this.state == TileState.IDLE) {
@@ -345,26 +346,21 @@ class ReprojTile extends Tile {
         if (state == TileState.IDLE || state == TileState.LOADING) {
           leftToLoad++;
 
-          const sourceListenKey = listen(
-            tile,
-            EventType.CHANGE,
-            function (e) {
-              const state = tile.getState();
-              if (
-                state == TileState.LOADED ||
-                state == TileState.ERROR ||
-                state == TileState.EMPTY
-              ) {
-                unlistenByKey(sourceListenKey);
-                leftToLoad--;
-                if (leftToLoad === 0) {
-                  this.unlistenSources_();
-                  this.reproject_();
-                }
+          const sourceListenKey = listen(tile, EventType.CHANGE, (e) => {
+            const state = tile.getState();
+            if (
+              state == TileState.LOADED ||
+              state == TileState.ERROR ||
+              state == TileState.EMPTY
+            ) {
+              unlistenByKey(sourceListenKey);
+              leftToLoad--;
+              if (leftToLoad === 0) {
+                this.unlistenSources_();
+                this.reproject_();
               }
-            },
-            this,
-          );
+            }
+          });
           this.sourcesListenerKeys_.push(sourceListenKey);
         }
       });
@@ -392,6 +388,7 @@ class ReprojTile extends Tile {
 
   /**
    * Remove from the cache due to expiry
+   * @override
    */
   release() {
     if (this.canvas_) {
