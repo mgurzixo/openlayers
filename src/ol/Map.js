@@ -45,6 +45,44 @@ import {removeNode} from './dom.js';
 import {warn} from './console.js';
 
 /**
+ * Override the default postRender scheduler.
+ * @type {function(function(): void): *}
+ */
+let postRenderScheduler = (cb) => setTimeout(cb, 0);
+
+/**
+ * Sets a custom scheduler for postRender work. The scheduler receives a
+ * callback and returns a handle that can be cancelled with
+ * `cancelPostRender(handle)`.
+ * @param {function(function(): void): *} scheduler - Schedule function.
+ * @param {function(*): void} [cancel] - Optional cancel function.
+ * @api
+ */
+export function setPostRenderScheduler(scheduler, cancel) {
+  postRenderScheduler = scheduler;
+  if (cancel) cancelPostRender = cancel;
+}
+
+/**
+ * Cancels a scheduled postRender task.
+ * @type {function(*): void}
+ */
+let cancelPostRender = (handle) => clearTimeout(handle);
+
+/**
+ * Schedules postRender via the configured scheduler.
+ * @param {Map} map - The map instance.
+ * @returns {*} Handle for cancellation.
+ * @private
+ */
+function schedulePostRender(map) {
+  return postRenderScheduler(() => {
+    map.postRenderTimeoutHandle_ = undefined;
+    map.handlePostRender();
+  });
+}
+
+/**
  * State of the current frame. Only `pixelRatio`, `time` and `viewState` should
  * be used in applications.
  * @typedef {Object} FrameState
@@ -295,7 +333,7 @@ class Map extends BaseObject {
 
     /**
      * @private
-     * @type {ReturnType<typeof setTimeout>}
+     * @type {ReturnType<typeof setTimeout>|undefined}
      */
     this.postRenderTimeoutHandle_;
 
@@ -1274,7 +1312,7 @@ class Map extends BaseObject {
     this.targetElement_ = targetElement;
     if (!targetElement) {
       if (this.renderer_) {
-        clearTimeout(this.postRenderTimeoutHandle_);
+        cancelPostRender(this.postRenderTimeoutHandle_);
         this.postRenderTimeoutHandle_ = undefined;
         this.postRenderFunctions_.length = 0;
         this.renderer_.dispose();
@@ -1516,6 +1554,7 @@ class Map extends BaseObject {
    * @private
    */
   renderFrame_(time) {
+    const renderStart = Date.now();
     const size = this.getSize();
     const view = this.getView();
     const previousFrameState = this.frameState_;
@@ -1605,6 +1644,8 @@ class Map extends BaseObject {
       }
     }
 
+    this.lastFrameRenderCostMs = Date.now() - renderStart;
+
     this.dispatchEvent(new MapEvent(MapEventType.POSTRENDER, this, frameState));
 
     this.renderComplete_ =
@@ -1617,10 +1658,7 @@ class Map extends BaseObject {
         : undefined;
 
     if (!this.postRenderTimeoutHandle_) {
-      this.postRenderTimeoutHandle_ = setTimeout(() => {
-        this.postRenderTimeoutHandle_ = undefined;
-        this.handlePostRender();
-      }, 0);
+      this.postRenderTimeoutHandle_ = schedulePostRender(this);
     }
   }
 
